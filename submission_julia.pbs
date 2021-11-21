@@ -1,0 +1,21 @@
+#PBS -S /bin/bash
+#PBS -A ACF-UTK0011
+#PBS -N julia-job-$PBS_JOBID
+#PBS -m abe
+#PBS -M crock2@vols.utk.edu
+#PBS -o /lustre/haven/user/crock2/AdM/pimc/Fermionic-PIMC-toy/JULIA/13/results/Julia-out-$PBS_JOBID.txt
+#PBS -e /lustre/haven/user/crock2/AdM/pimc/Fermionic-PIMC-toy/JULIA/13/results/Julia-error-$PBS_JOBID.txt
+#PBS -l nodes=1:ppn=1
+#PBS -l walltime=24:00:00
+#PBS -l qos=utk
+###PBS -l walltime=25:00:00
+###PBS -l qos=long-utk
+
+module load julia/1.6.1
+module load python3/3.6.5
+module load anaconda3/5.1.0
+
+Loc="/lustre/haven/user/crock2/AdM/pimc/Fermionic-PIMC-toy/JULIA/13"
+
+cd "Loc"/results
+julia "$Loc"/Driver.jl -T $1 -N $2 -J $3 -E $4 -O $5 -S $6

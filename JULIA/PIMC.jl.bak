@@ -1,0 +1,220 @@
+# Contains all the code that actually performs the PIMC, but not the requisite
+# helper functions that they call - obviously not meant to be called on its own
+
+# This should probably go in the "action.jl" file
+function InitializeDeterminants(Path::Paths, tau::Float64)
+    for tSlice = 1:Path.numTimeSlices
+        for ptcl = 1:Path.numParticles
+            Path.determinants[tSlice,ptcl] = Determinant(Path,tSlice,tau)
+        end
+    end
+end
+
+function CenterOfMassMove(Path::Paths,ptcl::Int64,tau::Float64)
+    # Attempts a CoM update, displacing the entire particle worldline
+    delta = 0.75
+    shift = Shift(delta) 
+    oldAction = 0.0
+    newAction = 0.0
+    tauO2 = tau/2
+
+    # Store the postiions on the worldline
+    for tSlice = 1:Path.numTimeSlices
+        oldAction += ComputeAction(Path,tSlice)
+    end
+    oldAction *= tauO2
+
+    # Save old potentials to avoid recalculating them
+    oldPotentials = copy(Path.potentials)
+    if Path.numParticles == 1
+        # For 1D, determinants don't need updating - translational symmetry for line shift
+    else
+        # For >1D, definitely need to recompute determinants
+    end
+
+    for tSlice = 1:Path.numTimeSlices
+        Path.beads[tSlice,ptcl] = Path.beads[tSlice,ptcl] + shift
+        UpdatePotential(Path,tSlice,ptcl)
+    end
+
+    for tSlice = 1:Path.numTimeSlices
+        newAction += ComputeAction(Path,tSlice)
+    end
+    newAction *= tauO2
+
+    if rand(MersenneTwister()) < exp(-(newAction - oldAction))
+        Path.numAcceptCOM += 1
+    else
+        for tSlice = 1:Path.numTimeSlices
+            Path.beads[tSlice,ptcl] = Path.beads[tSlice,ptcl] - shift
+        end
+        
+        Path.potentials = copy(oldPotentials)   # Restore old potentials
+    end
+end
+
+function StagingMove(Path::Paths, ptcl::Int64, tau::Float64)
+    #=
+    Attempts a staging move, which exactly samples the free-particle propagator
+    between two positions.
+
+    See: http://link.aps.org/doi/10.1103/PhysRevB.31.4234
+
+    Note: does not work for periodic boundary conditions.
+    =#
+    oldAction = 0.0
+    newAction = 0.0
+    edgeExclusion = 2   # Totally arbitrary choice
+        # The length of the stage - must be less than numTimeSlices
+    m = Path.numTimeSlices - 2*edgeExclusion    # Excludes at beginning and end?
+    tauO2 = tau/2
+    oldBeads = zeros(m-1)
+    oldPotentials = zeros(m-1)
+    oldDeterminant = zeros(m-1)
+
+        # Choose the start and end of the stage
+    alpha_start = rand(1:Path.numTimeSlices)
+    alpha_end = ModTslice((alpha_start + m), Path.numTimeSlices)
+
+    for a = 2:m
+        tSlice = ModTslice(alpha_start + a, Path.numTimeSlices)
+        oldBeads[a-1] = Path.beads[tSlice,ptcl]
+        oldPotentials[a-1] = Path.potentials[tSlice,ptcl]
+        oldDeterminant[a-1] = Path.determinants[tSlice,ptcl]
+        oldAction += tauO2 * ComputeAction(Path,tSlice)
+    end
+
+    for a = 2:m
+        tSlice = ModTslice((alpha_start + a), Path.numTimeSlices)
+        temp = ModTslice((tSlice - 1), Path.numTimeSlices)
+        temp == 0 ? tSlicem1 = Path.numTimeSlices : tSlicem1 = temp
+        tau1 = (m - a) * tau
+        avex = (tau1 * Path.beads[tSlicem1,ptcl] + 
+                tau * Path.beads[alpha_end,ptcl]) / (tau + tau1)
+        sigma2 = 2.0 * Path.lam / (1.0 / tau + 1.0 / tau1)
+        Path.beads[tSlice,ptcl] = avex + sqrt(sigma2) * randn()
+        UpdatePotential(Path,tSlice, ptcl)
+        UpdateDeterminant(Path,tSlice,ptcl, tau)
+        newAction += tauO2 * ComputeAction(Path,tSlice)
+    end
+    
+    # Perform the Metropolis step, if we reject, revert the worldline
+    if (rand() < exp(-(newAction - oldAction)))
+        Path.numAcceptStaging += 1
+    else
+        for a = 2:m
+            tSlice = ModTslice((alpha_start + a), Path.numTimeSlices)
+            Path.beads[tSlice,ptcl] = oldBeads[a-1]
+            Path.potentials[tSlice,ptcl] = oldPotentials[a-1]
+            Path.determinants[tSlice,ptcl] = oldDeterminant[a-1]
+        end
+    end
+end
+
+function Bin(beads::Matrix{Float64,}, binArray::Vector{Int64,}, x_a::Float64, 
+        x_b::Float64, numBins::Int64, binWidth::Float64, numTimeSlices::Int64)
+    binLoc = -1
+    for tSlice = 1:numTimeSlices
+        binLoc = trunc(Int, (beads[tSlice,1] - x_a)/binWidth)
+        if binLoc < 1
+            binLoc = 1
+        elseif binLoc > numBins
+            binLoc = numBins
+        end
+        binArray[binLoc] += 1
+    end
+end
+
+function PIMC(numSteps::Int64,Path::Paths,iter::Int64,numEquilibStep::Int64,
+            observableSkip::Int64,filename::String, multiple::Int64, 
+            binWidth::Float64, set::Dict{String, Any})
+    pNumP           = Path.numParticles
+    pNumT            = Path.numTimeSlices
+    x1_ave          = 0.0
+    x2_ave          = 0.0
+    equilSkip       = numEquilibStep
+    leng            = 1 + trunc(Int,(multiple - 1)*numEquilibStep/observableSkip)
+    energyTrace     = zeros(Float64, leng)
+    kineticTrace    = zeros(Float64, leng)
+    potentialTrace  = zeros(Float64, leng)
+    tau = Path.tau[iter]
+
+    x_a             = -5.0
+    x_b             = 5.0
+    x1delta         = 0.0   # Accumulator for x1 expectation value
+    x2delta         = 0.0   # Accumulator for x2 expectation value
+    numBins         = trunc(Int, (x_b - x_a)/binWidth)
+    x1Binned        = zeros(Int64, numBins)
+    x1bin           = 0.0   
+    x2Binned        = zeros(Int64, numBins)
+    x2bin           = 0.0
+    x2beads         = zeros(Float64, pNumP, pNumT)
+
+    # Initialize determinants array
+    InitializeDeterminants(Path, tau)
+    
+    # Initialize potentials array
+    InstantiatePotentials(Path)
+    
+    # MC iterations
+    for steps = 1:numSteps
+
+        for ptcl = 1:rand(1:pNumP,1,1)[1]
+             CenterOfMassMove(Path,ptcl,tau)
+        end
+        
+        for ptcl = 1:rand(1:pNumP,1,1)[1]
+             StagingMove(Path,ptcl,tau)
+        end
+        
+        if set["rawX1"] || set["binX1"]
+            x1delta = x1_expectation(Path.beads, pNumT, pNumP)
+            if set["binX1"] x1bin   += x1delta  end # Accumulates binned x1 expectation value - resets
+            if set["rawX1"] 
+                x1_ave  += x1delta  
+                rawX1Name = "raw_X1_" * filename
+                WriteOutMat(rawX1Name, Path.beads, pNumT, pNumP)
+            end # Accumulates total x1 expectation value
+        end
+        
+        if set["rawX2"] || set["binX2"]
+            x2delta = x2_expectation(Path.beads, pNumT, pNumP)
+            if set["binX2"] x2bin   += x2delta  end # Accumulates binned x2 expectation value - resets
+            if set["rawX2"]
+                x2_ave  += x2delta
+                rawX2Name = "raw_X2_" * filename
+                WriteOutMat(rawX2Name, Path.beads, pNumT, pNumP)
+            end
+        end
+
+        
+        count = 1
+        if (steps % observableSkip == 0) && (steps > equilSkip)
+            count = trunc(Int, steps/observableSkip - equilSkip/observableSkip)
+            energyTrace[count]      = Energy(Path, iter)
+            kineticTrace[count]     = Path.KE
+            potentialTrace[count]   = Path.PE
+#            count += 1
+        end
+                
+        if (steps % numBins == 0)
+            if set["binX1"] 
+                Bin(Path.beads, x1Binned, x_a, x_b, numBins, binWidth, pNumT)
+            end
+
+            if set["binX2"] 
+                for tSlice = 1:pNumT
+                    for ptcl = 1:pNumP
+                        x2beads[tSlice,ptcl] = Path.beads[tSlice,ptcl]*Path.beads[tSlice,ptcl]
+                    end
+                end
+
+                Bin(x2beads, x2Binned, x_a, x_b, numBins, binWidth, pNumT)
+            end
+        end
+    end
+#    println("x1Binned = \n$x1Binned")
+
+    div = numSteps
+    return energyTrace, kineticTrace, potentialTrace, x1_ave/div, x2_ave/div, x1Binned, x2Binned
+end
