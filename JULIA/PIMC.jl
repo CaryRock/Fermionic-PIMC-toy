@@ -226,8 +226,8 @@ function PIMC(Param::Params, Path::Paths, numSteps::Int64, set::Dict{String, Any
     
     # MC iterations
     sampleCount = 0 # Counts number of samples taken
-    step = 1        # Update counter
-    while sampleCount < (Param.numSamples + 1)
+    steps = 1        # Update counter
+    while sampleCount <= Param.numSamples
         # The toy code attempts both updates - should I do that here as well?
         for time = 1:Param.nTsl
             for ptcl = 1:rand(1:Param.nPar)
@@ -272,6 +272,6 @@ function PIMC(Param::Params, Path::Paths, numSteps::Int64, set::Dict{String, Any
             end
         end
 
-        step += 1
+        steps += 1
     end
 end
