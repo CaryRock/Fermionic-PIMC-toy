@@ -6,8 +6,6 @@ using Dates
 using Random
 using ArgParse
 
-ver="13"
-
 struct Params
     nPar::Int64             # Number of particles
     nTsl::Int64             # Number of time slices
@@ -158,6 +156,14 @@ include("expectations.jl")  # Contains the methods that compute <x>, <x^2>, etc.
 
 # Optimize - https://docs.julialang.org/en/v1/manual/performance-tips
 function main()
+### cd to output directory ####################################################
+    try
+        cd("RESULTS")
+    catch
+        mkdir("RESULTS")
+        cd("RESULTS")
+    end
+
 ### Set-up for the simulation #################################################
     set             = parse_commandline()
     tStamp          = Dates.value(Dates.now())
@@ -173,6 +179,7 @@ function main()
     x_max           = set["Xmax"]       # Sets the position upper bound
 
     # Number of MC steps to take in total
+    # TODO: IMPLEMENT A while() LOOP SO THAT THIS IS UNNECESSARY
     numMCsteps = numEquilibSteps + observableSkip * numSamples
     
     # Imaginary time: beta / J (beta / M in Ceperley)
@@ -192,7 +199,7 @@ function main()
     file_name = "data_T_$temp-Eq_$numEquilibSteps-Obs_$observableSkip-nB_$numTimeSlices-nP_$numParticles-$tStamp.dat"
 
     estDatName = "estimators_" * file_name
-    WriteHeader(estDatName, "#\tE\t\t\tKE\t\t\tPE\t\t\tX\t\t\tX2")
+    WriteHeader(estDatName, "#\tE\t\t\tE2\t\t\tKE\t\t\tPE\t\t\tX\t\t\tX2")
 
 ### Initialize the main data structures and set random initial positions ######
     println("Initializing the data structures...")
@@ -265,11 +272,10 @@ end
     # alleviate the expense of computation (and Mkv.Chains as well?)
 
 ### Collect and output any final results ######################################
-#    println("<X> = ")
-#    println("<X2> = ")
     println("Accepted CoM moves: $(Path.numAcceptCOM/numMCsteps)")
     println("Accepted Staging moves: $(Path.numAcceptStaging/numMCsteps)\n")
-
+    
+    cd("..")
 end
 
 if abspath(PROGRAM_FILE) == @__FILE__

@@ -178,10 +178,6 @@ function PIMC(Param::Params, Path::Paths, numSteps::Int64, set::Dict{String, Any
 #          (Take the average of the values in the accumulators, write them to disk, then zero the accumulators and the count (technically, `count = 1` is the code) and do it again)
 #          numBinsWritten += 1
 #       end
-#   TODO: SINCE THIS DEPENDS ON THE DESIRED NUMBER OF OUTPUT BINS, WRITING THIS AS A do-while LOOP WOULD SIMPLIFY THAT ASPECT GREATLY
-#       if numBInsWritten == numDesiredSamples (or whatever one calls it)
-#           end program
-#       end
 #   end
 # end
 =#
@@ -192,6 +188,7 @@ function PIMC(Param::Params, Path::Paths, numSteps::Int64, set::Dict{String, Any
                                 Param.numEquilibSteps/Param.observableSkip)
     width       = Param.numMCbins
     energy      = 0.0
+    energy2     = 0.0
     ke          = 0.0
     pe          = 0.0
     tau         = Param.tau
@@ -228,8 +225,10 @@ function PIMC(Param::Params, Path::Paths, numSteps::Int64, set::Dict{String, Any
     InstantiatePotentials(Param, Path)
     
     # MC iterations
-    count = 0
-    for steps = 1:numSteps
+    sampleCount = 0 # Counts number of samples taken
+    step = 1        # Update counter
+    while sampleCount < (Param.numSamples + 1)
+        # The toy code attempts both updates - should I do that here as well?
         for time = 1:Param.nTsl
             for ptcl = 1:rand(1:Param.nPar)
                  CenterOfMassMove(Param, Path, ptcl)
@@ -240,17 +239,17 @@ function PIMC(Param::Params, Path::Paths, numSteps::Int64, set::Dict{String, Any
             end
         end
 
-        if (steps % Param.observableSkip == 0) && (steps > equilSkip) && (count < Param.numSamples)
-            count += 1
-            println("Writing binning # $count / $(Param.numSamples)")
-#            distributionArray += Bin(Param, Path)    # Bins the distribution
+        if (steps % Param.observableSkip == 0) && (steps > equilSkip)
+            sampleCount += 1
+            println("Writing binning # $sampleCount / $(Param.numSamples)")
             BinCver(Param, Path, distArrayCount)
-            distributionArray += distArrayCount
-            x1_ave = 0.0
-            x2_ave = 0.0
-            energy                  = Energy(Param, Path)
-            ke                      = Path.KE
-            pe                      = Path.PE
+            distributionArray   += distArrayCount
+            x1_ave              = 0.0
+            x2_ave              = 0.0
+            energy              = Energy(Param, Path)
+            energy2             = energy*energy
+            ke                  = Path.KE
+            pe                  = Path.PE
 
             for i = 1:Param.nTsl
                 for j = 1:Param.nPar
@@ -260,7 +259,7 @@ function PIMC(Param::Params, Path::Paths, numSteps::Int64, set::Dict{String, Any
             end
             
 
-            WriteHeader(estDatName, "$energy\t$ke\t$pe\t$(x1_ave/Param.nTsl)\t$(x2_ave/Param.nTsl)")
+            WriteHeader(estDatName, "$energy\t$energy2\t$ke\t$pe\t$(x1_ave/Param.nTsl)\t$(x2_ave/Param.nTsl)")
             open(binDatName, "a") do file
                 for i = 1:width
                     @printf(file, "  %.8e", distributionArray[i]/(Param.nTsl))
@@ -272,5 +271,7 @@ function PIMC(Param::Params, Path::Paths, numSteps::Int64, set::Dict{String, Any
                 distributionArray[i] = 0.0
             end
         end
+
+        step += 1
     end
 end

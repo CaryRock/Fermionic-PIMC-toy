@@ -1,10 +1,8 @@
-CCC	= gcc
-OPT	= -std=c++17 -O3
-
-all: prog
-
-prog: 1-AP-sho.cpp
-	$(CCC) $(OPT) -o sho 1-AP-sho.cpp
+CCC=g++
+OPTS="-O3"
 
 clean:
-	rm -f *~ *.txt
+	rm *.txt
+
+prog:
+	${CCC} ${OPTS} AP-sho.cpp -o sho.x
