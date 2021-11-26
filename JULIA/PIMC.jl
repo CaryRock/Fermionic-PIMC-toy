@@ -154,8 +154,26 @@ function BinCver(Param::Params, Path::Paths, binArrCount::Vector{Float64})
     end
 end
 
+function UpdateMC(Param::Params, Path::Paths)
+    for time = 1:Param.nTsl        
+        # pseudo: 
+        #   switch: pick a random value
+        #       case: CoM move
+        #       case: Staging move
+        #   end
+        for ptcl = 1:rand(1:Param.nPar)
+             CenterOfMassMove(Param, Path, ptcl)
+        end
+        
+        for ptcl = 1:rand(1:Param.nPar)
+             StagingMove(Param, Path, ptcl)
+        end
+    end
+end
+
 function PIMC(Param::Params, Path::Paths, numSteps::Int64, set::Dict{String, Any})
 #= TODO: WHILE I'M AT IT, RE/NAME VARIABLES TO SOMETHING INTELLIGIBLE
+# TODO: IMPLEMENT LOGGING OF RESULTS A LA (g)ce-log-### FILE FROM PRODUCTION CODE
 # Monte Carlo outline:
 #
 # for step = 1:numMCsteps
@@ -184,8 +202,8 @@ function PIMC(Param::Params, Path::Paths, numSteps::Int64, set::Dict{String, Any
     x1_ave      = 0.0
     x2_ave      = 0.0
     equilSkip   = Param.numEquilibSteps
-    leng        = 1 + trunc(Int,(Param.numSamples - 1) *
-                                Param.numEquilibSteps/Param.observableSkip)
+#    leng        = 1 + trunc(Int,(Param.numSamples - 1) *
+#                                Param.numEquilibSteps/Param.observableSkip)
     width       = Param.numMCbins
     energy      = 0.0
     energy2     = 0.0
@@ -197,12 +215,12 @@ function PIMC(Param::Params, Path::Paths, numSteps::Int64, set::Dict{String, Any
     distArrayCount      = zeros(Float64, width)
     stepSize            = (Param.x_b - Param.x_a)/width
         # These are the x-axis bins into with the distribution will be binned
-    bins                = collect(range(Param.x_a, Param.x_b, step=stepSize))
-    deleteat!(bins, length(bins))   # Stupid range function - it doesn't act 
+    distrbtnBins                = collect(range(Param.x_a, Param.x_b, step=stepSize))
+    deleteat!(distrbtnBins, length(distrbtnBins))   # Stupid range function - it doesn't act 
                                     # like it does in Python. In Julia, it
                                     # includes the endpoint. Thus, remove last.
-    if length(distributionArray) != length(bins)
-        println("Failure! distributionArray = $(length(distributionArray)) while bin = $(length(bins))")
+    if length(distributionArray) != length(distrbrnBins)
+        println("Failure! distributionArray = $(length(distributionArray)) while bin = $(length(distrbtnBins))")
         exit()
     end
 
@@ -214,8 +232,8 @@ function PIMC(Param::Params, Path::Paths, numSteps::Int64, set::Dict{String, Any
     
     open(binDatName, "a") do file
         print(file, "#  ")
-        for i = 1:length(bins)
-            @printf(file, "%e   ", bins[i])
+        for i = 1:length(distrbtnBins)
+            @printf(file, "%e   ", distrbtnBins[i])
         end
         print(file, "\n")
     end
@@ -226,20 +244,20 @@ function PIMC(Param::Params, Path::Paths, numSteps::Int64, set::Dict{String, Any
     
     # MC iterations
     sampleCount = 0 # Counts number of samples taken
-    steps = 1        # Update counter
-    while sampleCount <= Param.numSamples
-        # The toy code attempts both updates - should I do that here as well?
-        for time = 1:Param.nTsl
-            for ptcl = 1:rand(1:Param.nPar)
-                 CenterOfMassMove(Param, Path, ptcl)
-            end
-        
-            for ptcl = 1:rand(1:Param.nPar)
-                 StagingMove(Param, Path, ptcl)
-            end
-        end
+    steps = 1       # Update counter
 
-        if (steps % Param.observableSkip == 0) && (steps > equilSkip)
+    # Warmup
+    println("Equilibriating the simulation...")
+    for steps = ProgressBar(1:equilSkip)
+        UpdateMC(Param, Path)
+    end
+
+    steps = equilSkip + 1   # Because Julia doesn't "reuse" variables like C/C++ would
+    while sampleCount < Param.numSamples
+        # The toy code attempts both updates - should I do that here as well?
+        UpdateMC(Param, Path)
+
+        if (steps % Param.observableSkip == 0) #&& (steps > equilSkip)  # Should already be handled from above
             sampleCount += 1
             println("Writing binning # $sampleCount / $(Param.numSamples)")
             BinCver(Param, Path, distArrayCount)

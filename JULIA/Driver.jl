@@ -5,6 +5,7 @@
 using Dates
 using Random
 using ArgParse
+using ProgressBars  # Entirely vain - just gives the pretty progress bar
 
 struct Params
     nPar::Int64             # Number of particles
