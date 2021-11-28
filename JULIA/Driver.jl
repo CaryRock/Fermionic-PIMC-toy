@@ -6,7 +6,7 @@ using Dates
 using Random
 using ArgParse
 using ProgressBars  # Entirely vain - just gives the pretty progress bar
-
+using UUIDs         # I sort-of despise this language. I really kind of do.
 struct Params
     nPar::Int64             # Number of particles
     nTsl::Int64             # Number of time slices
@@ -24,7 +24,7 @@ struct Params
     observableSkip::Int64   # Number of MC steps to skip between observations
     numSamples::Int64       # Sets # of MC setps in total
     baseName::String        # Base name of data file(s)
-    tStamp::Int64           # Int of "stamped" time - akin to UUID, but with time instead
+    uid::UUID               # UUID
 end
 
 mutable struct Paths
@@ -196,10 +196,14 @@ function main()
     println("lambda\t\t= $(lam)")
     println("Temperature\t= $(temp)")
     println("numMCSteps\t= $(numMCsteps)\n")
+    uid = uuid1()
+    initDensity = 1.0
+    imagTimeStep = 1.0
 
-    file_name = "data_T_$temp-Eq_$numEquilibSteps-Obs_$observableSkip-nB_$numTimeSlices-nP_$numParticles-$tStamp.dat"
+    file_name = "$temp-$numParticles-$initDensity-$imagTimeStep-$uid.dat"
+#    file_name = "data_T_$temp-Eq_$numEquilibSteps-Obs_$observableSkip-nB_$numTimeSlices-nP_$numParticles-$tStamp.dat"
 
-    estDatName = "estimators_" * file_name
+    estDatName = "ce-estimators-" * file_name
     WriteHeader(estDatName, "#\tE\t\t\tE2\t\t\tKE\t\t\tPE\t\t\tX\t\t\tX2")
 
 ### Initialize the main data structures and set random initial positions ######
@@ -243,34 +247,27 @@ struct Params
     tStamp::Int64           # Int of "stamped" time - akin to UUID, but with time instead
 end
 =#
-    Prms = Params(numParticles, 
-                  numTimeSlices, 
-                  lam, 
-                  tau, 
-                  x_min, 
-                  x_max, 
-                  delta, 
-                numHistBins, 
-                numBins, 
-                binWidth, 
-                numMCbins, 
-                numEquilibSteps, 
-                observableSkip, 
-                numSamples, 
-                file_name, 
-                tStamp)
+    Prms = Params(numParticles,     #nPar
+                    numTimeSlices,  #nTsl
+                    lam,            #lam
+                    tau,            #tau
+                    x_min,          #x_a
+                    x_max,          #x_b
+                    delta,          #delta
+                    numHistBins,    #numHistBins
+                    numBins,        #numBins
+                    binWidth,       #binWidth
+                    numMCbins,      #numMCbins
+                    numEquilibSteps,#numEquilibSteps
+                    observableSkip, #observableSkip
+                    numSamples,     #numSamples
+                    file_name,      #baseName
+                    uid)            #uuid
     Path = Paths(beads, determinants, potentials, ke, pe, numAccCom, numAccStag)
 
 ### Run the simulation proper #################################################
     println("Starting the simulation...")
     PIMC(Prms, Path, numMCsteps, set)
-    # P(X) is actually a vector: P(X) := {P(x_1), P(x_2), ..., P(x_N)}
-    # Each of those P(x_i) values could be written out to their own file as 
-    # their own estimator, very much similar to the energies that get reported.
-    # As such, "observableSkip" should apply to them as well. That said, for the
-    # P(x_i), they are also affected by MC binning to help alleviate any errors
-    # introduced by Markov Chains (I think?), on top of observableSkip to help 
-    # alleviate the expense of computation (and Mkv.Chains as well?)
 
 ### Collect and output any final results ######################################
     println("Accepted CoM moves: $(Path.numAcceptCOM/numMCsteps)")

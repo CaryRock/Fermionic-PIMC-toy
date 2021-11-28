@@ -219,15 +219,16 @@ function PIMC(Param::Params, Path::Paths, numSteps::Int64, set::Dict{String, Any
     deleteat!(distrbtnBins, length(distrbtnBins))   # Stupid range function - it doesn't act 
                                     # like it does in Python. In Julia, it
                                     # includes the endpoint. Thus, remove last.
-    if length(distributionArray) != length(distrbrnBins)
+    if length(distributionArray) != length(distrbtnBins)
         println("Failure! distributionArray = $(length(distributionArray)) while bin = $(length(distrbtnBins))")
         exit()
     end
 
-    estDatName  = "estimators_" * Param.baseName
-    binDatName  = "binnedMC_" * Param.baseName
+    # Thanks I hate it
+    estDatName  = "ce-estimators-" * Param.baseName
+    binDatName  = "ce-lineardensity-" * Param.baseName
     
-    WriteHeader(binDatName, "# PIMCID: $(Param.tStamp)\t#\t#\t#")
+    WriteHeader(binDatName, "# PIMCID: $(Param.uid)\t#\t#\t#\t#\t#")
     WriteHeader(binDatName, "# ESTINF: dz = $((Param.x_b - Param.x_a)/width) NGRIDSEP = $width\t#\t#\t#")
     
     open(binDatName, "a") do file
