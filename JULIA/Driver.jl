@@ -5,6 +5,7 @@
 using Dates
 using Random
 using ArgParse
+using Printf
 using ProgressBars  # Entirely vain - just gives the pretty progress bar
 using UUIDs         # I sort-of despise this language. I really kind of do.
 struct Params
@@ -199,8 +200,11 @@ function main()
     uid = uuid1()
     initDensity = 1.0
     imagTimeStep = 1.0
-
-    file_name = "$temp-$numParticles-$initDensity-$imagTimeStep-$uid.dat"
+    
+    file_name = "$(@sprintf("%06.3f",temp))-$(@sprintf("%04.0f",numParticles))-$(@sprintf("%06.3f",1.0))-$(@sprintf("%07.5f",1.0))-$uid.dat"
+    println(file_name)
+    exit()
+#    file_name = "$temp-$numParticles-$initDensity-$imagTimeStep-$uid.dat"
 #    file_name = "data_T_$temp-Eq_$numEquilibSteps-Obs_$observableSkip-nB_$numTimeSlices-nP_$numParticles-$tStamp.dat"
 
     estDatName = "ce-estimators-" * file_name
