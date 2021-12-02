@@ -207,7 +207,8 @@ function main()
 #    file_name = "$temp-$numParticles-$initDensity-$imagTimeStep-$uid.dat"
 #    file_name = "data_T_$temp-Eq_$numEquilibSteps-Obs_$observableSkip-nB_$numTimeSlices-nP_$numParticles-$tStamp.dat"
 
-    estDatName = "ce-estimators-" * file_name
+    estDatName = "ce-estimator-" * file_name
+    WriteHeader(estDatName, "#PIMCID: $uid")
     WriteHeader(estDatName, "#\tE\t\t\tE2\t\t\tKE\t\t\tPE\t\t\tX\t\t\tX2")
 
 ### Initialize the main data structures and set random initial positions ######
