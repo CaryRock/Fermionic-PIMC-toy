@@ -158,14 +158,6 @@ include("expectations.jl")  # Contains the methods that compute <x>, <x^2>, etc.
 
 # Optimize - https://docs.julialang.org/en/v1/manual/performance-tips
 function main()
-### cd to output directory ####################################################
-    try
-        cd("RESULTS/$(set["numTime"])")
-    catch
-        mkdir("RESULTS/$(set["numTime"])")
-        cd("RESULTS/$(set["numTime"])")
-    end
-
 ### Set-up for the simulation #################################################
     set             = parse_commandline()
     tStamp          = Dates.value(Dates.now())
@@ -201,12 +193,20 @@ function main()
     initDensity = 1.0
     imagTimeStep = 1.0
     
+### cd to output directory ####################################################
+    try
+        cd("RESULTS/$(set["numTime"])")
+    catch
+        mkdir("RESULTS/$(set["numTime"])")
+        cd("RESULTS/$(set["numTime"])")
+    end
+
+### Create files for output, write headers ####################################
 #Production code naming scheme:$temp            $numParticles                       $initDensity            $imagTimeStep          $uid.dat"
 #    file_name = "$(@sprintf("%06.3f",temp))-$(@sprintf("%04.0f",numParticles))-$(@sprintf("%06.3f",1.0))-$(@sprintf("%07.5f",1.0))-$uid.dat"
-    file_name = "$(@sprintf("%06.3f",temp))-$(@sprintf("%04.0f",numparticles))-$(@sprintf("%04.0f",numTimeSlices))-$uid.dat"
+    file_name = "$(@sprintf("%06.3f",temp))-$(@sprintf("%04.0f",numParticles))-$(@sprintf("%04.0f",numTimeSlices))-$uid.dat"
     
     println(file_name)
-    exit()
 #    file_name = "data_T_$temp-Eq_$numEquilibSteps-Obs_$observableSkip-nB_$numTimeSlices-nP_$numParticles-$tStamp.dat"
 
     estDatName = "ce-estimator-" * file_name
