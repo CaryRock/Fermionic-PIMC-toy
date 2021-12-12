@@ -11,7 +11,7 @@ from math import exp
 import matplotlib.pyplot as plt
 import argparse
 import pathlib
-import re
+import glob
 
 def create_parser():
     parser = argparse.ArgumentParser(description='First iteration of a script \
@@ -26,6 +26,7 @@ containing X1 data", required=True)
 
     # TODO: IMPLEMENT FUNCTIONALITY TO PARSE ALL INPUT FILES AT SAME TIME AND
     # OUTPUT A SINGLE GRID PLOT OF THEM ALL (ALL AT ONCE)
+    # That would be glob.glob("ce-{estimator}-...")
 
     return parser
 

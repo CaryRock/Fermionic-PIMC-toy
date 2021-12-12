@@ -136,7 +136,7 @@ function Bin(Param::Params, Path::Paths)
     return binArray
 end
 
-function BinCver(Param::Params, Path::Paths, binArrCount::Vector{Float64})
+function SpatialBinCver(Param::Params, Path::Paths, binArrCount::Vector{Float64})
     binLoc = -1
     for i = 1:Param.numMCbins
         binArrCount[i] = 0
@@ -260,8 +260,10 @@ function PIMC(Param::Params, Path::Paths, numSteps::Int64, set::Dict{String, Any
 
         if (steps % Param.observableSkip == 0) #&& (steps > equilSkip)  # Should already be handled from above
             sampleCount += 1
-            println("Writing binning # $sampleCount / $(Param.numSamples)")
-            BinCver(Param, Path, distArrayCount)
+            if (steps % 256 == 0)
+                println("Writing binning # $sampleCount / $(Param.numSamples)")
+            end
+            SpatialBinCver(Param, Path, distArrayCount)
             distributionArray   += distArrayCount
             x1_ave              = 0.0
             x2_ave              = 0.0
@@ -277,6 +279,7 @@ function PIMC(Param::Params, Path::Paths, numSteps::Int64, set::Dict{String, Any
                 end
             end
             
+            #TODO: IMPLEMENT PROPPER BINNING - START IN COMMENT SPACE BELOW
 
             WriteHeader(estDatName, "$energy\t$energy2\t$ke\t$pe\t$(x1_ave/Param.nTsl)\t$(x2_ave/Param.nTsl)")
             open(binDatName, "a") do file

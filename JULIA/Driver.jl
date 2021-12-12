@@ -160,10 +160,10 @@ include("expectations.jl")  # Contains the methods that compute <x>, <x^2>, etc.
 function main()
 ### cd to output directory ####################################################
     try
-        cd("RESULTS")
+        cd("RESULTS/$(set["numTime"])")
     catch
-        mkdir("RESULTS")
-        cd("RESULTS")
+        mkdir("RESULTS/$(set["numTime"])")
+        cd("RESULTS/$(set["numTime"])")
     end
 
 ### Set-up for the simulation #################################################
@@ -201,10 +201,12 @@ function main()
     initDensity = 1.0
     imagTimeStep = 1.0
     
-    file_name = "$(@sprintf("%06.3f",temp))-$(@sprintf("%04.0f",numParticles))-$(@sprintf("%06.3f",1.0))-$(@sprintf("%07.5f",1.0))-$uid.dat"
+#Production code naming scheme:$temp            $numParticles                       $initDensity            $imagTimeStep          $uid.dat"
+#    file_name = "$(@sprintf("%06.3f",temp))-$(@sprintf("%04.0f",numParticles))-$(@sprintf("%06.3f",1.0))-$(@sprintf("%07.5f",1.0))-$uid.dat"
+    file_name = "$(@sprintf("%06.3f",temp))-$(@sprintf("%04.0f",numparticles))-$(@sprintf("%04.0f",numTimeSlices))-$uid.dat"
+    
     println(file_name)
     exit()
-#    file_name = "$temp-$numParticles-$initDensity-$imagTimeStep-$uid.dat"
 #    file_name = "data_T_$temp-Eq_$numEquilibSteps-Obs_$observableSkip-nB_$numTimeSlices-nP_$numParticles-$tStamp.dat"
 
     estDatName = "ce-estimator-" * file_name
@@ -231,27 +233,7 @@ function main()
     numHistBins = 0
     numBins = 50
 
-#=TODO: I'VE NAMED THINGS STUPIDLY. UNSTUPIDIFY THEM. NAMELY, binWidth && numMCbins
-struct Params
-    nPar::Int64             # Number of particles
-    nTsl::Int64             # Number of time slices
-    lam::Float64            # System parameters - hbar^2/(2mk_B) = 1/2
-    tau::Float64            # beta/J (beta/M in Ceperley-ese)
-    x_a::Float64            # Arbitrary left edge
-    x_b::Float64            # Arbitrary right edge
-    delta::Float64          # Width of possible shift for a bead
-    numHistBins::Int64      # Number of bins for histogram
-    numBins::Int64
-    # The following two should be specific to relevant estimators, not global
-    binWidth::Float64       # Width of bins for binning the distribution
-    numMCbins::Int64        # Number of bins for MC binning
-    numEquilibSteps::Int64  # Number of steps to skip for equilibriation
-    observableSkip::Int64   # Number of MC steps to skip between observations
-    numSamples::Int64       # Sets # of MC setps in total
-    baseName::String        # Base name of data file(s)
-    tStamp::Int64           # Int of "stamped" time - akin to UUID, but with time instead
-end
-=#
+#TODO: I'VE NAMED THINGS STUPIDLY. UNSTUPIDIFY THEM. NAMELY, binWidth && numMCbins
     Prms = Params(numParticles,     #nPar
                     numTimeSlices,  #nTsl
                     lam,            #lam
@@ -278,7 +260,7 @@ end
     println("Accepted CoM moves: $(Path.numAcceptCOM/numMCsteps)")
     println("Accepted Staging moves: $(Path.numAcceptStaging/numMCsteps)\n")
     
-    cd("..")
+    cd("../..")
 end
 
 if abspath(PROGRAM_FILE) == @__FILE__
