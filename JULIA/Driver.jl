@@ -257,8 +257,8 @@ function main()
     PIMC(Prms, Path, numMCsteps, set)
 
 ### Collect and output any final results ######################################
-    println("Accepted CoM moves: $(Path.numAcceptCOM/numMCsteps)")
-    println("Accepted Staging moves: $(Path.numAcceptStaging/numMCsteps)\n")
+    println("Accepted CoM moves: $(Path.numAcceptCOM/numSamples)")
+    println("Accepted Staging moves: $(Path.numAcceptStaging/numSamples)\n")
     
     cd("../..")
 end

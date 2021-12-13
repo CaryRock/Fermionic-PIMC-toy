@@ -225,7 +225,7 @@ function PIMC(Param::Params, Path::Paths, numSteps::Int64, set::Dict{String, Any
     end
 
     # Thanks I hate it
-    estDatName  = "ce-estimators-" * Param.baseName
+    estDatName  = "ce-estimator-" * Param.baseName
     binDatName  = "ce-lineardensity-" * Param.baseName
     
     WriteHeader(binDatName, "# PIMCID: $(Param.uid)\t#\t#\t#\t#\t#")
