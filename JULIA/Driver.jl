@@ -51,10 +51,15 @@ function parse_commandline()
             help = "Number of particles"
             required = true
             arg_type = Int64
-        "--numTime", "-J"
-            help = "Number of time slices"
+        "--tau", "-t"
+            help = "delta tau of particle - 1/(temperature * number of time \
+            slices). Defineds the number of time slices."
             required = true
-            arg_type = Int64
+            arg_type = Float64
+#        "--numTime", "-J"
+#            help = "Number of time slices"
+#            required = true
+#            arg_type = Int64
         "--numEquil", "-E"
             help = "Number of steps to equilibriate over"
             required = true
@@ -164,7 +169,8 @@ function main()
     lam             = 1/2 # A^2 * K -- hbar^2/(m k_B) -> m = hbar^2 / k_B
     temp            = set["temp"]       # Temperature to run simulation at
     numParticles    = set["numPart"]    # Number of particles
-    numTimeSlices   = set["numTime"]    # Number of beads along a line
+#    numTimeSlices   = set["numTime"]    # Number of beads along a line
+    tau             = set["tau"]
     numEquilibSteps = set["numEquil"]   # Number of steps to equilibriate over
     observableSkip  = set["obsSkip"]    # Number of MC steps between observations
     numSamples      = set["numSamples"] # Defines numMCsteps 
@@ -173,12 +179,11 @@ function main()
     x_max           = set["Xmax"]       # Sets the position upper bound
 
     # Number of MC steps to take in total
-    # TODO: IMPLEMENT A while() LOOP SO THAT THIS IS UNNECESSARY
     numMCsteps = numEquilibSteps + observableSkip * numSamples
     
     # Imaginary time: beta / J (beta / M in Ceperley)
-    tau = 1/(numTimeSlices * temp)
-
+#    tau = 1/(numTimeSlices * temp)
+    numTimeSlices = trunc(Int64, 1/(tau*temp))
     #numMCtoBin  = 50
     # binWidth and numMCbins are for specific estimators; binSize is for binning the MC itself
     binWidth    = set["binWidth"]  # Width of bin for distribution binning in MC sampling
