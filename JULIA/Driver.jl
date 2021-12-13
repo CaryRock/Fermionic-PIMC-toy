@@ -47,14 +47,17 @@ function parse_commandline()
             help = "Temperature in K"
             required = true
             arg_type = Float64
+            default = 1.0
         "--numPart", "-N"
             help = "Number of particles"
             required = true
             arg_type = Int64
+            default = 1
         "--tau", "-t"
             help = "delta tau of particle - 1/(temperature * number of time slices). Defineds the number of time slices."
             required = true
             arg_type = Float64
+            default = 0.02      # For T = 1 => J = 50
 #        "--numTime", "-J"
 #            help = "Number of time slices"
 #            required = true
@@ -63,15 +66,17 @@ function parse_commandline()
             help = "Number of steps to equilibriate over"
             required = true
             arg_type = Int64
+            default = 32768     # 2^15
         "--obsSkip", "-O"
             help = "Number of steps between observations"
             required = true
             arg_type = Int64
+            default = 1
         "--numSamples", "-S"
             help = "Number of desired samples to take"
             required = true
             arg_type = Int64
-            default = 201
+            default = 131072    # 2^17
 ### Options for Setting Variables #############################################
         "--binWidth", "-b"
             help = "Sets the desired width of bins"
@@ -199,16 +204,16 @@ function main()
     
 ### cd to output directory ####################################################
     try
-        cd("RESULTS/$(set["numTime"])")
+        cd("RESULTS/$tau")
     catch
-        mkdir("RESULTS/$(set["numTime"])")
-        cd("RESULTS/$(set["numTime"])")
+        mkdir("RESULTS/$tau")
+        cd("RESULTS/$tau")
     end
 
 ### Create files for output, write headers ####################################
 #Production code naming scheme:$temp            $numParticles                       $initDensity            $imagTimeStep          $uid.dat"
 #    file_name = "$(@sprintf("%06.3f",temp))-$(@sprintf("%04.0f",numParticles))-$(@sprintf("%06.3f",1.0))-$(@sprintf("%07.5f",1.0))-$uid.dat"
-    file_name = "$(@sprintf("%06.3f",temp))-$(@sprintf("%04.0f",numParticles))-$(@sprintf("%04.0f",numTimeSlices))-$uid.dat"
+    file_name = "$(@sprintf("%06.3f",temp))-$(@sprintf("%04.0f",numParticles))-$(@sprintf("%07.4f",tau))-$uid.dat"
     
     println(file_name)
 #    file_name = "data_T_$temp-Eq_$numEquilibSteps-Obs_$observableSkip-nB_$numTimeSlices-nP_$numParticles-$tStamp.dat"
