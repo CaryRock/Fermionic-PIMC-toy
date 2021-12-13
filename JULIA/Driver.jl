@@ -52,8 +52,7 @@ function parse_commandline()
             required = true
             arg_type = Int64
         "--tau", "-t"
-            help = "delta tau of particle - 1/(temperature * number of time \
-            slices). Defineds the number of time slices."
+            help = "delta tau of particle - 1/(temperature * number of time slices). Defineds the number of time slices."
             required = true
             arg_type = Float64
 #        "--numTime", "-J"
