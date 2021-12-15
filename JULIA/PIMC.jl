@@ -101,7 +101,9 @@ function StagingMove(Param::Params, Path::Paths, ptcl::Int64)
         UpdatePotential(Path,tSlice, ptcl, Param.lam)
         UpdateDeterminant(Param, Path, tSlice, ptcl)
         newAction                   += tauO2 * ComputeAction(Param, Path,tSlice)
-            # See Ceperley about this (Potential) Action, how it relates to the Primitive approximation, extra factors of tau in the "accuracy", etc. In the first few sections.
+            # See Ceperley about this (Potential) Action, how it relates to the
+            # Primitive approximation, extra factors of tau in the "accuracy", 
+            # etc. In the first few sections.
     end
     
     # Perform the Metropolis step, if we reject, revert the worldline
@@ -117,18 +119,17 @@ function StagingMove(Param::Params, Path::Paths, ptcl::Int64)
     end
 end
 
-#function Bin(Param::Params, Path::Paths, binArray::Vector{Float64})
 function Bin(Param::Params, Path::Paths)
     binLoc = -1
 
-    binArray = zeros(Float64, Param.numMCbins)
+    binArray = zeros(Float64, Param.numSpatialBins)
     for tSlice = 1:Param.nTsl
         # DON'T FORGET THE "JULIA OFFSET" - +1 BECAUSE JULIA
-        binLoc = 1 + trunc(Int, (Path.beads[tSlice,1] - Param.x_a)/Param.binWidth)
+        binLoc = 1 + trunc(Int, (Path.beads[tSlice,1] - Param.x_a)/Param.spatialBinWidth)
         if binLoc < 1
             binLoc = 1
-        elseif binLoc > Param.numMCbins
-            binLoc = Param.numMCbins
+        elseif binLoc > Param.numSpatialBins
+            binLoc = Param.numSpatialBins
         end
         binArray[binLoc] += 1
     end
@@ -138,17 +139,17 @@ end
 
 function SpatialBinCver(Param::Params, Path::Paths, binArrCount::Vector{Float64})
     binLoc = -1
-    for i = 1:Param.numMCbins
+    for i = 1:Param.numSpatialBins
         binArrCount[i] = 0
     end
 
     for tSlice = 1:Param.nTsl
         # DON'T FORGET THE "JULIA OFFSET" - +1 BECAUSE JULIA
-        binLoc = 1 + trunc(Int, (Path.beads[tSlice,1] - Param.x_a)/Param.binWidth)
+        binLoc = 1 + trunc(Int, (Path.beads[tSlice,1] - Param.x_a)/Param.spatialBinWidth)
         if binLoc < 1
             binLoc = 1
-        elseif binLoc > Param.numMCbins
-            binLoc = Param.numMCbins
+        elseif binLoc > Param.numSpatialBins
+            binLoc = Param.numSpatialBins
         end
         binArrCount[binLoc] += 1
     end
@@ -172,71 +173,46 @@ function UpdateMC(Param::Params, Path::Paths)
 end
 
 function PIMC(Param::Params, Path::Paths, numSteps::Int64, set::Dict{String, Any})
-#= TODO: WHILE I'M AT IT, RE/NAME VARIABLES TO SOMETHING INTELLIGIBLE
 # TODO: IMPLEMENT LOGGING OF RESULTS A LA (g)ce-log-### FILE FROM PRODUCTION CODE
-# Monte Carlo outline:
-#
-# for step = 1:numMCsteps
-#   for site = 1:numSites
-#   TODO: IMPLEMENT THIS RANDOM-SELECTION UPDATE OR LEAVE IT AS-IS?
-#       (pick random "site" to perform randomly-chosen update (either CoM and Staging - pick one), do it, iterate)
-#       (for the case of this wordline method, pick random line for CoM, random string of beads for Staging)
-#           (Check to make sure that this isn't already handled in the CoM and Staging functions (I think it is))
-#   end
-#   
-#   (check - how many steps before measurement?)
-#   if (step % observSkip) && (step > equilibriation)
-#       (This is to help mitigate the effects of autocorrelation as well as to prevent expensive functions from being computed more than they really need to be)
-#       AppropriateAccumulators += ComputeEstimators(arguments)
-#       count += 1 (!!! When initializing, don't forget the Julia offset of +1!)
-#
-#   TODO: IMPLEMENT THIS MC BINNING
-#       (Check if the number of accumulated MC steps is the desired amount for result binning - if so, average and then write to disk)
-#       if count == numBins
-#          (Take the average of the values in the accumulators, write them to disk, then zero the accumulators and the count (technically, `count = 1` is the code) and do it again)
-#          numBinsWritten += 1
-#       end
-#   end
-# end
-=#
     x1_ave      = 0.0
     x2_ave      = 0.0
     equilSkip   = Param.numEquilibSteps
-#    leng        = 1 + trunc(Int,(Param.numSamples - 1) *
-#                                Param.numEquilibSteps/Param.observableSkip)
-    width       = Param.numMCbins
-    energy      = 0.0
+    width       = Param.numSpatialBins
+    energy1     = 0.0
     energy2     = 0.0
     ke          = 0.0
     pe          = 0.0
     tau         = Param.tau
-    
+    binSize     = Param.sweepsToBin # It's dumb and I need to fix it
+
     distributionArray   = zeros(Float64, width)
     distArrayCount      = zeros(Float64, width)
     stepSize            = (Param.x_b - Param.x_a)/width
-        # These are the x-axis bins into with the distribution will be binned
-    distrbtnBins                = collect(range(Param.x_a, Param.x_b, step=stepSize))
-    deleteat!(distrbtnBins, length(distrbtnBins))   # Stupid range function - it doesn't act 
-                                    # like it does in Python. In Julia, it
-                                    # includes the endpoint. Thus, remove last.
-    if length(distributionArray) != length(distrbtnBins)
-        println("Failure! distributionArray = $(length(distributionArray)) while bin = $(length(distrbtnBins))")
+        # These are the x-axis spatial bins into which the distribution will be binned
+    distrbtnBins        = collect(range(Param.x_a, Param.x_b, step=stepSize))
+    deleteat!(distrbtnBins, length(distrbtnBins))   # Stupid range function - 
+                                    # it doesn't act like it does in Python. 
+                                    # In Julia, it includes the endpoint.
+                                    # Thus, remove that last point.
+    if length(distrbtnBins) != width
+        println("Failure! distributionArray = $width while bin = $(length(distrbtnBins))")
         exit()
     end
 
-    # Thanks I hate it
     estDatName  = "ce-estimator-" * Param.baseName
-    binDatName  = "ce-lineardensity-" * Param.baseName
+    if (set["spatial-distribution"])
+        binDatName  = "ce-lineardensity-" * Param.baseName
     
-    WriteHeader(binDatName, "# PIMCID: $(Param.uid)\t#\t#\t#\t#\t#")
-    WriteHeader(binDatName, "# ESTINF: dz = $((Param.x_b - Param.x_a)/width) NGRIDSEP = $width\t#\t#\t#")
+        WriteHeader(binDatName, "# PIMCID: $(Param.uid)\t#\t#\t#\t#\t#")
+        WriteHeader(binDatName, "# ESTINF: dz = $stepSize NGRIDSEP = $width\t#\t#\t#")
     
-    open(binDatName, "a") do file
-        print(file, "#  ")
-        for i = 1:length(distrbtnBins)
-            @printf(file, "%e   ", distrbtnBins[i])
+        open(binDatName, "a") do file
+            print(file, "#  ")
+            for i = 1:width
+                @printf(file, "%e   ", distrbtnBins[i])
+            end
+            print(file, "\n")
         end
-        print(file, "\n")
     end
 
     # Initialize the determinants and potentials arrays
@@ -245,7 +221,8 @@ function PIMC(Param::Params, Path::Paths, numSteps::Int64, set::Dict{String, Any
     
     # MC iterations
     sampleCount = 0 # Counts number of samples taken
-    steps = 1       # Update counter
+    binCount    = 0 # Counts the number of sweeps that have been binned over
+    steps       = 1 # Update counter
 
     # Warmup
     println("Equilibriating the simulation...")
@@ -253,24 +230,25 @@ function PIMC(Param::Params, Path::Paths, numSteps::Int64, set::Dict{String, Any
         UpdateMC(Param, Path)
     end
 
+    println("Starting the data collection now...")
     steps = equilSkip + 1   # Because Julia doesn't "reuse" variables like C/C++ would
     while sampleCount < Param.numSamples
         # The toy code attempts both updates - should I do that here as well?
         UpdateMC(Param, Path)
 
-        if (steps % Param.observableSkip == 0) #&& (steps > equilSkip)  # Should already be handled from above
-            sampleCount += 1
-            if (steps % 256 == 0)
-                println("Writing binning # $sampleCount / $(Param.numSamples)")
+        if (steps % Param.observableSkip == 0)
+            ### Start accumulating expectation values, etc.
+            binCount += 1
+
+            if (set["spatial-distribution"])
+                SpatialBinCver(Param, Path, distArrayCount)
+                distributionArray += distArrayCount
             end
-            SpatialBinCver(Param, Path, distArrayCount)
-            distributionArray   += distArrayCount
-            x1_ave              = 0.0
-            x2_ave              = 0.0
-            energy              = Energy(Param, Path)
-            energy2             = energy*energy
-            ke                  = Path.KE
-            pe                  = Path.PE
+
+            energy1     += Energy(Param, Path)
+            energy2     += energy1*energy1
+            ke          += Path.KE
+            pe          += Path.PE
 
             for i = 1:Param.nTsl
                 for j = 1:Param.nPar
@@ -278,22 +256,46 @@ function PIMC(Param::Params, Path::Paths, numSteps::Int64, set::Dict{String, Any
                     x2_ave += Path.beads[i,j] * Path.beads[i,j]
                 end
             end
-            
-            #TODO: IMPLEMENT PROPPER BINNING - START IN COMMENT SPACE BELOW
 
-            WriteHeader(estDatName, "$energy\t$energy2\t$ke\t$pe\t$(x1_ave/Param.nTsl)\t$(x2_ave/Param.nTsl)")
-            open(binDatName, "a") do file
-                for i = 1:width
-                    @printf(file, "  %.8e", distributionArray[i]/(Param.nTsl))
+            if (binCount % binSize == 0)
+                ### Write the binned data to file
+                sampleCount += 1
+                if (sampleCount % 256 == 0)
+                    println("Writing sample $sampleCount / $(Param.numSamples)")
                 end
-                print(file, "\n")
-            end
+                
+                energy1 /= binSize
+                energy2 /= binSize
+                ke      /= binSize 
+                x1_ave  /= (binSize * Param.nTsl)
+                x2_ave  /= (binSize * Param.nTsl)
 
-            for i = 1:width
-                distributionArray[i] = 0.0
-            end
-        end
+                WriteHeader(estDatName, "$energy1\t$energy2\t$ke\t$pe\t$x1_ave\t$x2_ave")
 
+                if (set["spatial-distribution"])
+                    open(binDatName, "a") do file
+                        for i = 1:width
+                            @printf(file, "  %.8e", distributionArray[i]/(binSize * Param.nTsl))
+                        end
+                        print(file, "\n")
+                    end
+
+                    for i = 1:width
+                        distributionArray[i]= 0.0
+                        distArrayCount[i]   = 0.0
+                    end
+                end
+
+                # After recording, zero out the accumulators as well as binCount
+                x1_ave  = 0.0
+                x2_ave  = 0.0
+                energy1 = 0.0
+                energy2 = 0.0
+            end # end of the binning if()
+        end # enf of the observableSkip if()
+        
         steps += 1
-    end
-end
+    end # end of the while(samples) loop
+
+    println("UUID of file(s): $(Param.uid)")
+end # end of the PIMC()

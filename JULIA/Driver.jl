@@ -8,6 +8,7 @@ using ArgParse
 using Printf
 using ProgressBars  # Entirely vain - just gives the pretty progress bar
 using UUIDs         # I sort-of despise this language. I really kind of do.
+
 struct Params
     nPar::Int64             # Number of particles
     nTsl::Int64             # Number of time slices
@@ -17,10 +18,10 @@ struct Params
     x_b::Float64            # Arbitrary right edge
     delta::Float64          # Width of possible shift for a bead
     numHistBins::Int64      # Number of bins for histogram
-    numBins::Int64
+    sweepsToBin::Int64
     # The following two should be specific to relevant estimators, not global
-    binWidth::Float64       # Width of bins for binning the distribution
-    numMCbins::Int64        # Number of bins for MC binning
+    spatialBinWidth::Float64# Width of bins for binning the distribution
+    numSpatialBins::Int64   # Number of bins for MC binning
     numEquilibSteps::Int64  # Number of steps to skip for equilibriation
     observableSkip::Int64   # Number of MC steps to skip between observations
     numSamples::Int64       # Sets # of MC setps in total
@@ -78,7 +79,11 @@ function parse_commandline()
             arg_type = Int64
             default = 131072    # 2^17
 ### Options for Setting Variables #############################################
-        "--binWidth", "-b"
+        "--sweepsToBin", "-B"
+            help = "Sets the desired number of MC sweeps to bin over"
+            arg_type = Int64
+            default = 50
+        "--spatialBinWidth", "-b"
             help = "Sets the desired width of bins"
             arg_type = Float64
             default = 0.05
@@ -109,7 +114,9 @@ function parse_commandline()
         "--binX2"
             help = "Report binned <x^2> value"
             action = :store_true
-
+        "--spatial-distribution"
+            help = "Record spatial (1D) distribution to go along with the run."
+            action = :store_true
     end
     
     return parse_args(set)
@@ -178,6 +185,7 @@ function main()
     numEquilibSteps = set["numEquil"]   # Number of steps to equilibriate over
     observableSkip  = set["obsSkip"]    # Number of MC steps between observations
     numSamples      = set["numSamples"] # Defines numMCsteps 
+    sweepsToBin     = set["sweepsToBin"]# Number of recorded MC sweeps to bin
     delta           = set["delta"]      # Sets the delta to be used for Shift()
     x_min           = set["Xmin"]       # Sets the position lower bound
     x_max           = set["Xmax"]       # Sets the position upper bound
@@ -189,9 +197,9 @@ function main()
 #    tau = 1/(numTimeSlices * temp)
     numTimeSlices = trunc(Int64, 1/(tau*temp))
     #numMCtoBin  = 50
-    # binWidth and numMCbins are for specific estimators; binSize is for binning the MC itself
-    binWidth    = set["binWidth"]  # Width of bin for distribution binning in MC sampling
-    numMCbins   = trunc(Int64, (x_max - x_min)/binWidth)
+    # spatialBinWidth and numSpatialBins are for specific estimators; binSize is for binning the MC itself
+    spatialBinWidth     = set["spatialBinWidth"]  # Width of bin for distribution binning in MC sampling
+    numSpatialBins      = trunc(Int64, (x_max - x_min)/spatialBinWidth)
 
     println("Simulation Parameters:")
     println("N\t\t= $(numParticles)")
@@ -240,7 +248,7 @@ function main()
     determinants    = zeros(Float64, numTimeSlices, numParticles)
     potentials      = zeros(Float64, numTimeSlices, numParticles)
     numHistBins = 0
-    numBins = 50
+    #sweepsToBin = 50
 
 #TODO: I'VE NAMED THINGS STUPIDLY. UNSTUPIDIFY THEM. NAMELY, binWidth && numMCbins
     Prms = Params(numParticles,     #nPar
@@ -251,9 +259,9 @@ function main()
                     x_max,          #x_b
                     delta,          #delta
                     numHistBins,    #numHistBins
-                    numBins,        #numBins
-                    binWidth,       #binWidth
-                    numMCbins,      #numMCbins
+                    sweepsToBin,    #sweepsToBin
+                    spatialBinWidth,#binWidth
+                    numSpatialBins, #numMCbins
                     numEquilibSteps,#numEquilibSteps
                     observableSkip, #observableSkip
                     numSamples,     #numSamples

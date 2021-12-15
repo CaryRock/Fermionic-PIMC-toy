@@ -1,4 +1,8 @@
-#define __SHO_H__
+#ifndef COMMON_HEADERS_HPP
+#include "common_headers.hpp"
+#endif
+
+#define AP_HEADER_HPP
 
 struct Params;
 struct Paths;

@@ -1,45 +1,47 @@
-#include <cstdio>
-#include <cstdlib>
-#include <math.h>
-#include <string>   // Command-line argument & file name handling
-#include <random>
-#include <sstream>
+#include "common_headers.hpp"
+#include <sstream>  // Do I need this?
 #include "AP_header.hpp"
 
-// Boost header files
 #include <boost/program_options.hpp>
-#include <boost/uuid/uuid.hpp>
-#include <boost/uuid/uuid_generators.hpp>
-#include <boost/uuid/uuid_io.hpp>           // I might not actually need this one...
 
-//using po = boost::program_options;
+using po = boost::program_options;
+using br = boost::random;
+using bu = boost::uuids;
+
 using std::string;
 
 struct Params
 {
-    // uint64_t -> portable uint64_t type
-    uint64_t nPar;          // Number of particles
-    uint64_t nTsl;          // Number of time slices
-    double lam;             // System parameters - hbar^2/(2mk_B)  = 1/2
-    double tau;             // beta/J (beta/M in Ceperley-ese)
-    double x_a;       // Arbitrary left edge
-    double x_b;        // Arbitrary right edge
-    double delta;           // Width of possible shift for a bead
-    uint64_t numHistBins;   // Number of bins for histrogram
-    uint64_t numBucks;      // Number of MC steps to bin (number of buckets)
+    uint64_t nPar;              // Number of particles
+    uint64_t nTsl;              // Number of time slices
+    double lam;                 // System parameters - hbar^2/(2mk_B)  = 1/2
+    double tau;                 // beta/J (beta/M in Ceperley-ese)
+    double x_a;                 // Arbitrary left edge
+    double x_b;                 // Arbitrary right edge
+    double delta;               // Width of possible shift for a bead
+    uint64_t numHistBins;       // Number of bins for histrogram
+    uint64_t numBucks;          // Number of MC steps to bin (number of buckets)
     // The following two should be specific to relevant estimators, not global
 //    double binWidth;
 //    uint64_t numMCbins;
-    uint64_t numEquilibSteps;    // Number of steps to skip for equilibriation
-    uint64_t observableSkip;     // Number of MC steps to skip between observations
-    uint64_t numSamples;    // Sets the # of MC steps in total
-    string baseName;        // Base name of the data file(s)
-    string uuid;            // UUID for unique identification
+    uint64_t numEquilibSteps;   // Number of steps to skip for equilibriation
+    uint64_t observableSkip;    // Number of MC steps to skip between observations
+    uint64_t numSamples;        // Sets the # of MC steps in total
+    string baseName;            // Base name of the data file(s)
+    string uuid;                // UUID for unique identification
+
+    br::mt19937_64 rng;
+    br::uniform_real_distribution dist01;
 
     Params(uint64_t nPar, uint64_t nTsl, double lam, double tau, double x_a, 
             double x_b, double delta, uint64_t numHistBins, uint64_t numBucks, 
             uint64_t numEquilibSteps, uint64_t observableSkip, 
             uint64_t numSamples, string baseName, string uuid);
+    
+    ~Params();
+
+    double GetRNG01(double delta=0.75);
+
 };
 
 Params::Params(uint64_t nP, uint64_t nT, double lm, double tu, double xa, 
@@ -60,6 +62,16 @@ Params::Params(uint64_t nP, uint64_t nT, double lm, double tu, double xa,
     numSamples = nmSmpls;
     baseName = bsNm;
     uuid = uid;
+
+    rng = engine;
+    dist01 = dist;
+}
+
+Params::~Params() {}
+
+inline double Params::GetRNG01(double delta=0.75)
+{
+    return dist01(rng);
 }
 
 struct Paths
@@ -75,12 +87,15 @@ struct Paths
     Paths(double **beads, double **determinants, double **potentials);
 };
 
+// This is wrong - check out the Phys642_Final_Project code for reference
 Paths::Paths(double **bds, double **determs, double **potens)
 {
     **beads = **bds;
     **determinants = **determs;
     **potentials = **potens;
 }
+
+Paths::~Paths() {}
 
 inline double ExtPotential(double R, double lam)
 {
