@@ -1,14 +1,12 @@
-# This is simply the file that contains most of the code relevant to the energy
-# aspect of the program, sans "ExtPotential" which remains in the main file.
+# This file contains most of the code relevant to the energy aspect of the 
+# program, sans "ExtPotential" which remains in the main file (for now).
+# Energy estimators are to go here.
 
 # This is the basic method of computing the KE estimator. This shouldn't be 
 # used. Instead, the thermodynamic KE esetimator will be used.
-# TODO: This is returning energies that are too large. KE should be ~1/2 <X2>, 
-# and roughly equivalent to PE. It is most definitely not so as is. Find out why.
-# Check that this was derived correctly
 function KineticEnergy(Param, beads::Matrix{Float64})
     # Computes the KE of the particle(s)
-    dim = 1.0   # Float to aid julia's casting
+    #dim = 1.0   # Float to aid julia's casting
     tot = 0.0
     norm = 1.0/(4.0 * Param.lam * Param.tau * Param.tau)
     for tSlice = 1:Param.nTsl
@@ -19,7 +17,7 @@ function KineticEnergy(Param, beads::Matrix{Float64})
             tot = tot - norm * delR * delR
         end
     end
-    energy = 0.5 * dim * Param.nPar / Param.tau + tot/Param.nTsl
+    energy = 0.5 * Param.nPar / Param.tau + tot/Param.nTsl
     return energy
 end
 
@@ -41,8 +39,6 @@ end
 
 function Energy(Param::Params, Path::Paths)
     # Returns the KE + PE of the particle(s)
-#    Path.KE = 0.0
-#    Path.PE = 0.0
 
     Path.KE = KineticEnergy(Param, Path.beads)
     Path.PE = PotentialEnergy(Param, Path.potentials)

@@ -267,6 +267,7 @@ function PIMC(Param::Params, Path::Paths, numSteps::Int64, set::Dict{String, Any
                 energy1 /= binSize
                 energy2 /= binSize
                 ke      /= binSize 
+                pe      /= binSize
                 x1_ave  /= (binSize * Param.nTsl)
                 x2_ave  /= (binSize * Param.nTsl)
 

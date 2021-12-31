@@ -274,8 +274,13 @@ function main()
     PIMC(Prms, Path, numMCsteps, set)
 
 ### Collect and output any final results ######################################
-    println("Accepted CoM moves: $(Path.numAcceptCOM/numSamples)")
-    println("Accepted Staging moves: $(Path.numAcceptStaging/numSamples)\n")
+    Path.numAcceptStaging /= ( sweepsToBin * numSamples )
+    logName = "ce-log-" * file_name
+    WriteHeader(logName, "#PIMCID: $uid")
+    WriteHeader(logName, "CoM Acceptance Ratio:\t\t$(Path.numAcceptCOM)")
+    WriteHeader(logName, "Staging Acceptance Ratio:\t\t$(Path.numAcceptStaging)")
+    println("Accepted CoM moves: $(Path.numAcceptCOM)")
+    println("Accepted Staging moves: $(Path.numAcceptStaging)\n")
     
     cd("../..")
 end
