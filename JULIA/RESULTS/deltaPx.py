@@ -71,20 +71,23 @@ def main(argv=None):
     delta = data[1][0] - data[0][0]
    
     counts = np.zeros(n)            # The data curve
+    error = np.zeros(n)
     u   = np.linspace(x_a, x_b, n)  # Setup the x-axis values
     for i in range(n):
         u[i] += delta/2             # To align to center of bins
         counts[i] = data[i][1]        # Could do without this, but separats out count values nicely
+        error[i] = data[i][2]
     v   = np.copy(u)
     rho = np.zeros(n)               # Theoretical curve
 
     for i in range(n):
-        rho[i] = p[0] * exp( p[1] * (-p[2] * (u[i]*u[i] + v[i]*v[i]) + 2*u[i]*v[i]/p[3]))
+        #rho[i] = p[0] * exp( p[1] * (-p[2] * (u[i]*u[i] + v[i]*v[i]) + 2*u[i]*v[i]/p[3]))
+        rho[i] = np.exp(-u[i]**2 * np.tanh(0.5/T)) / np.sqrt(np.pi/np.tanh(0.5/T))
         # Compute that curve
 
     # Normalize the theoretical curve
-    norm = scipy.integrate.simps(rho,u)
-    rho /= norm
+    #norm = scipy.integrate.simps(rho,u)
+    #rho /= norm
     
     # Normalize the data curve
     norm = scipy.integrate.simps(counts,u)
@@ -108,7 +111,8 @@ def main(argv=None):
     plt.figure()
     plt.axhline(y=0,alpha=0.5)
     plt.plot(u, rho, 'r--', alpha=0.5, label="Theoretical curve")
-    plt.plot(u, counts, 'k--', alpha=0.5, label="MC data")
+    #plt.plot(u, counts, 'k--', alpha=0.5, label="MC data")
+    plt.errorbar(u, counts, yerr=error, fmt='ko', alpha=0.33, label="MC data")
     plt.plot(u, diff, 'b.', label="Difference between Theory and MC data")
     plt.suptitle(f"Lineardensity @ T = {T} K")
     plt.title(f"File={args.data}")

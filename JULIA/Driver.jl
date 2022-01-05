@@ -35,8 +35,8 @@ mutable struct Paths
     potentials::Array{Float64}
     KE::Float64
     PE::Float64
-    numAcceptCOM::Int64
-    numAcceptStaging::Int64
+    numAcceptCOM::Float64
+    numAcceptStaging::Float64
 end
 
 function parse_commandline()
@@ -262,7 +262,7 @@ function main()
     x_min           = set["Xmin"]       # Sets the position lower bound
     x_max           = set["Xmax"]       # Sets the position upper bound
     
-    initDens        = numParticles / (x_max - x-min)    # Initial density
+    initDens        = numParticles / (x_max - x_min)    # Initial density
 
     # Number of MC steps to take in total
     numMCsteps = numEquilibSteps + observableSkip * numSamples
@@ -287,9 +287,7 @@ function main()
     try
         cd("RESULTS/$tau")
     catch
-        mkdir("RESULTS/")
-        mkdir("RESULTS/$tau")
-        cd("RESULTS/$tau")
+        mkpath("RESULTS/$tau")
     end
 
 ### Create files for output, write headers ####################################
@@ -298,7 +296,6 @@ function main()
 file_name = "$(@sprintf("%06.3f",temp))-$(@sprintf("%04.0f",numParticles))-$(@sprintf("%06.3f",initDens))-$(@sprintf("%07.5f",tau))-$uid.dat"
     
     println(file_name)
-#    file_name = "data_T_$temp-Eq_$numEquilibSteps-Obs_$observableSkip-nB_$numTimeSlices-nP_$numParticles-$tStamp.dat"
 
     estDatName = "ce-estimator-" * file_name
     WriteHeader(estDatName, "#PIMCID: $uid")
@@ -347,20 +344,19 @@ file_name = "$(@sprintf("%06.3f",temp))-$(@sprintf("%04.0f",numParticles))-$(@sp
     logName = "ce-log-" * file_name
     WriteLogFileParameters(logName, Prms, Path, numMCsteps, set, invocation)
 
-    exit()
-
 ### Run the simulation proper #################################################
     println("Starting the simulation...")
     PIMC(Prms, Path, numMCsteps, set)
 
 ### Collect and output any final results ######################################
+    Path.numAcceptCOM       /= ( sweepsToBin * numSamples )
     Path.numAcceptStaging /= ( sweepsToBin * numSamples )
     logName = "ce-log-" * file_name
     WriteHeader(logName, "#PIMCID: $uid")
     WriteHeader(logName, "CoM Acceptance Ratio:\t\t$(Path.numAcceptCOM)")
     WriteHeader(logName, "Staging Acceptance Ratio:\t\t$(Path.numAcceptStaging)")
-    println("Accepted CoM moves: $(Path.numAcceptCOM)")
-    println("Accepted Staging moves: $(Path.numAcceptStaging)\n")
+    println("Accepted CoM ratio: $(Path.numAcceptCOM)")
+    println("Accepted Staging ratio: $(Path.numAcceptStaging)\n")
     
     cd("../..")
 end
