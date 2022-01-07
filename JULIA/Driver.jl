@@ -14,8 +14,8 @@ struct Params
     nTsl::Int64             # Number of time slices
     lam::Float64            # System parameters - hbar^2/(2mk_B) = 1/2
     tau::Float64            # beta/J (beta/M in Ceperley-ese)
-    x_a::Float64            # Arbitrary left edge
-    x_b::Float64            # Arbitrary right edge
+    x_min::Float64            # Arbitrary left edge
+    x_max::Float64            # Arbitrary right edge
     delta::Float64          # Width of possible shift for a bead
     numHistBins::Int64      # Number of bins for histogram
     sweepsToBin::Int64
@@ -141,8 +141,8 @@ end
 end
 
 # Controls the width of the possible shift in position for a bead
-@inline function Shift(delta::Float64  = 1.0)
-    return delta * (-1.0 + 2.0 * rand(MersenneTwister()))
+@inline function Shift(rng::MersenneTwister, delta::Float64  = 1.0)
+    return delta * (-1.0 + 2.0 * rand(rng))
 end
 
 # Writes the header of the given file, filename, with the given string
@@ -307,11 +307,14 @@ file_name = "$(@sprintf("%06.3f",temp))-$(@sprintf("%04.0f",numParticles))-$(@sp
     pe          = 0.0
     numAccCom   = 0
     numAccStag  = 0
+    
+    rng = MersenneTwister()
+    
     beads = zeros(Float64, numTimeSlices, numParticles)
     # https://discourse.julialang.org/t/creating-an-array-matrix-with-a-specified-range-of-randomly-generated-numbers/15471
     for tSlice = 1:numTimeSlices
         for ptcl = 1:numParticles
-            beads[tSlice,ptcl] = Shift(delta)
+            beads[tSlice,ptcl] = Shift(rng, delta)
         end
     end
 
@@ -326,8 +329,8 @@ file_name = "$(@sprintf("%06.3f",temp))-$(@sprintf("%04.0f",numParticles))-$(@sp
                     numTimeSlices,  #nTsl
                     lam,            #lam
                     tau,            #tau
-                    x_min,          #x_a
-                    x_max,          #x_b
+                    x_min,          #left-most value
+                    x_max,          #right-most value
                     delta,          #delta
                     numHistBins,    #numHistBins
                     sweepsToBin,    #sweepsToBin
@@ -346,7 +349,7 @@ file_name = "$(@sprintf("%06.3f",temp))-$(@sprintf("%04.0f",numParticles))-$(@sp
 
 ### Run the simulation proper #################################################
     println("Starting the simulation...")
-    PIMC(Prms, Path, numMCsteps, set)
+    PIMC(Prms, Path, numMCsteps, set, rng)
 
 ### Collect and output any final results ######################################
     Path.numAcceptCOM       /= ( sweepsToBin * numSamples )

@@ -12,10 +12,10 @@ function InitializeDeterminants(Param::Params, Path::Paths)
     end
 end
 
-function CenterOfMassMove(Param::Params, Path::Paths, ptcl::Int64)
+function CenterOfMassMove(Param::Params, Path::Paths, ptcl::Int64, rng::MersenneTwister)
     # Attempts a CoM update, displacing the entire particle worldline
     delta = Param.delta
-    shift = Shift(delta) 
+    shift = Shift(rng, delta) 
     oldAction = 0.0
     newAction = 0.0
     tau = Param.tau
@@ -28,11 +28,19 @@ function CenterOfMassMove(Param::Params, Path::Paths, ptcl::Int64)
     oldAction *= tauO2
 
     # Save old potentials to avoid recalculating them
-    oldPotentials = copy(Path.potentials)
+    oldPotentials = zeros(Float64, Param.nTsl, Param.nPar)
+    #oldPotentials = copy(Path.potentials)
+    for tSlice = 1:Param.nTsl
+        for ptcl = 1:Param.nPar
+            oldPotentials[tSlice,ptcl] = Path.potentials[tSlice,ptcl]
+        end
+    end
+
     if Param.nPar == 1
-        # For 1D, determinants don't need updating - translational symmetry for line shift
+        # For a single particle, the determinants don't need updating - translational symmetry for line shift
     else
         # For >1D, definitely need to recompute determinants
+        # TODO: IMPLEMENT DETERMINANT RECOMPUTATION (only for required determinants, of course)
     end
 
     for tSlice = 1:Param.nTsl
@@ -45,18 +53,20 @@ function CenterOfMassMove(Param::Params, Path::Paths, ptcl::Int64)
     end
     newAction *= tauO2
 
-    if rand(MersenneTwister()) < exp(-(newAction - oldAction))
+    if rand(rng) < exp(-(newAction - oldAction))
         Path.numAcceptCOM += 1
     else
         for tSlice = 1:Param.nTsl
             Path.beads[tSlice,ptcl] = Path.beads[tSlice,ptcl] - shift
+
+            for ptcl = 1:Param.nPar
+                Path.potentials[tSlice,ptcl] = oldPotentials[tSlice,ptcl]   # Restore old potentials
+            end
         end
-        
-        Path.potentials = copy(oldPotentials)   # Restore old potentials
     end
 end
 
-function StagingMove(Param::Params, Path::Paths, ptcl::Int64)
+function StagingMove(Param::Params, Path::Paths, ptcl::Int64, rng::MersenneTwister)
     #=
     Attempts a staging move, which exactly samples the free-particle propagator
     between two positions.
@@ -97,7 +107,7 @@ function StagingMove(Param::Params, Path::Paths, ptcl::Int64)
         avex                = (tau1 * Path.beads[tSlicem1,ptcl] + 
                                 tau * Path.beads[alpha_end,ptcl]) / (tau + tau1)
         sigma2                      = 2.0 * Param.lam / (1.0 / tau + 1.0 / tau1)
-        Path.beads[tSlice,ptcl]     = avex + sqrt(sigma2) * randn()
+        Path.beads[tSlice,ptcl]     = avex + sqrt(sigma2) * randn(rng)
         UpdatePotential(Path,tSlice, ptcl, Param.lam)
         UpdateDeterminant(Param, Path, tSlice, ptcl)
         newAction                   += tauO2 * ComputeAction(Param, Path,tSlice)
@@ -107,7 +117,7 @@ function StagingMove(Param::Params, Path::Paths, ptcl::Int64)
     end
     
     # Perform the Metropolis step, if we reject, revert the worldline
-    if (rand() < exp(-(newAction - oldAction)))
+    if (rand(rng) < exp(-(newAction - oldAction)))
         Path.numAcceptStaging += 1
     else
         for a = 1:m-1
@@ -125,7 +135,7 @@ function Bin(Param::Params, Path::Paths)
     binArray = zeros(Float64, Param.numSpatialBins)
     for tSlice = 1:Param.nTsl
         # DON'T FORGET THE "JULIA OFFSET" - +1 BECAUSE JULIA
-        binLoc = 1 + trunc(Int, (Path.beads[tSlice,1] - Param.x_a)/Param.spatialBinWidth)
+        binLoc = 1 + trunc(Int, (Path.beads[tSlice,1] - Param.x_min)/Param.spatialBinWidth)
         if binLoc < 1
             binLoc = 1
         elseif binLoc > Param.numSpatialBins
@@ -145,7 +155,7 @@ function SpatialBinCver(Param::Params, Path::Paths, binArrCount::Vector{Float64}
 
     for tSlice = 1:Param.nTsl
         # DON'T FORGET THE "JULIA OFFSET" - +1 BECAUSE JULIA
-        binLoc = 1 + trunc(Int, (Path.beads[tSlice,1] - Param.x_a)/Param.spatialBinWidth)
+        binLoc = 1 + trunc(Int, (Path.beads[tSlice,1] - Param.x_min)/Param.spatialBinWidth)
         if binLoc < 1
             binLoc = 1
         elseif binLoc > Param.numSpatialBins
@@ -155,24 +165,19 @@ function SpatialBinCver(Param::Params, Path::Paths, binArrCount::Vector{Float64}
     end
 end
 
-function UpdateMC(Param::Params, Path::Paths)
+function UpdateMC(Param::Params, Path::Paths, rng::MersenneTwister)
     for time = 1:Param.nTsl        
-        # pseudo: 
-        #   switch: pick a random value
-        #       case: CoM move
-        #       case: Staging move
-        #   end
         for ptcl = 1:rand(1:Param.nPar)
-             CenterOfMassMove(Param, Path, ptcl)
+             CenterOfMassMove(Param, Path, ptcl, rng)
         end
         
         for ptcl = 1:rand(1:Param.nPar)
-             StagingMove(Param, Path, ptcl)
+             StagingMove(Param, Path, ptcl, rng)
         end
     end
 end
 
-function PIMC(Param::Params, Path::Paths, numSteps::Int64, set::Dict{String, Any})
+function PIMC(Param::Params, Path::Paths, numSteps::Int64, set::Dict{String, Any}, rng::MersenneTwister)
 # TODO: IMPLEMENT LOGGING OF RESULTS A LA (g)ce-log-### FILE FROM PRODUCTION CODE
     x1_ave      = 0.0
     x2_ave      = 0.0
@@ -187,9 +192,9 @@ function PIMC(Param::Params, Path::Paths, numSteps::Int64, set::Dict{String, Any
 
     distributionArray   = zeros(Float64, width)
     distArrayCount      = zeros(Float64, width)
-    stepSize            = (Param.x_b - Param.x_a)/width
+    stepSize            = (Param.x_max - Param.x_min)/width
         # These are the x-axis spatial bins into which the distribution will be binned
-    distrbtnBins        = collect(range(Param.x_a, Param.x_b, step=stepSize))
+    distrbtnBins        = collect(range(Param.x_min, Param.x_max, step=stepSize))
     deleteat!(distrbtnBins, length(distrbtnBins))   # Stupid range function - 
                                     # it doesn't act like it does in Python. 
                                     # In Julia, it includes the endpoint.
@@ -227,14 +232,14 @@ function PIMC(Param::Params, Path::Paths, numSteps::Int64, set::Dict{String, Any
     # Warmup
     println("Equilibriating the simulation...")
     for steps = ProgressBar(1:equilSkip)
-        UpdateMC(Param, Path)
+        UpdateMC(Param, Path, rng)
     end
 
     println("Starting the data collection now...")
     steps = equilSkip + 1   # Because Julia doesn't "reuse" variables like C/C++ would
     while sampleCount < Param.numSamples
         # The toy code attempts both updates - should I do that here as well?
-        UpdateMC(Param, Path)
+        UpdateMC(Param, Path, rng)
 
         if (steps % Param.observableSkip == 0)
             ### Start accumulating expectation values, etc.
