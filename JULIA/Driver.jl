@@ -272,7 +272,7 @@ function main()
     #numMCtoBin  = 50
     # spatialBinWidth and numSpatialBins are for specific estimators; binSize is for binning the MC itself
     spatialBinWidth     = set["spatialBinWidth"]  # Width of bin for distribution binning in MC sampling
-    numSpatialBins      = trunc(Int64, (x_max - x_min)/spatialBinWidth)
+    numSpatialBins      = trunc(Int64, (x_max - x_min)/spatialBinWidth + 1)
 
     println("Simulation Parameters:")
     println("N\t\t= $(numParticles)")

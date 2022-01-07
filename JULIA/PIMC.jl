@@ -178,7 +178,6 @@ function UpdateMC(Param::Params, Path::Paths, rng::MersenneTwister)
 end
 
 function PIMC(Param::Params, Path::Paths, numSteps::Int64, set::Dict{String, Any}, rng::MersenneTwister)
-# TODO: IMPLEMENT LOGGING OF RESULTS A LA (g)ce-log-### FILE FROM PRODUCTION CODE
     x1_ave      = 0.0
     x2_ave      = 0.0
     equilSkip   = Param.numEquilibSteps
@@ -192,17 +191,21 @@ function PIMC(Param::Params, Path::Paths, numSteps::Int64, set::Dict{String, Any
 
     distributionArray   = zeros(Float64, width)
     distArrayCount      = zeros(Float64, width)
-    stepSize            = (Param.x_max - Param.x_min)/width
+    stepSize            = (Param.x_max - Param.x_min)/(width - 1)
         # These are the x-axis spatial bins into which the distribution will be binned
     distrbtnBins        = collect(range(Param.x_min, Param.x_max, step=stepSize))
-    deleteat!(distrbtnBins, length(distrbtnBins))   # Stupid range function - 
+    #deleteat!(distrbtnBins, length(distrbtnBins))   # Stupid range function - 
                                     # it doesn't act like it does in Python. 
                                     # In Julia, it includes the endpoint.
                                     # Thus, remove that last point.
-    if length(distrbtnBins) != width
-        println("Failure! distributionArray = $width while bin = $(length(distrbtnBins))")
-        exit()
-    end
+    #if length(distrbtnBins) != width + 1
+    #    println("Failure! distributionArray = $width while bin = $(length(distrbtnBins))")
+    #    exit()
+    #end
+
+    println("\nX_max = $(Param.x_max)\nX_Min = $(Param.x_min)")
+    println("numSpatialBins = $width")
+    println("stepSize = $stepSize\n")
 
     estDatName  = "ce-estimator-" * Param.baseName
     if (set["spatial-distribution"])
