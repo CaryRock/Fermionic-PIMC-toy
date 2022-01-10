@@ -288,6 +288,7 @@ function main()
         cd("RESULTS/$tau")
     catch
         mkpath("RESULTS/$tau")
+        cd("RESULTS/$tau")
     end
 
 ### Create files for output, write headers ####################################
