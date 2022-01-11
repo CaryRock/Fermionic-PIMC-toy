@@ -32,7 +32,7 @@ function CenterOfMassMove(Param::Params, Path::Paths, ptcl::Int64, rng::Mersenne
     #oldPotentials = copy(Path.potentials)
     for tSlice = 1:Param.nTsl
         for ptcl = 1:Param.nPar
-            oldPotentials[tSlice,ptcl] = Path.potentials[tSlice,ptcl]
+            @inbounds oldPotentials[tSlice,ptcl] = Path.potentials[tSlice,ptcl]
         end
     end
 
@@ -44,12 +44,12 @@ function CenterOfMassMove(Param::Params, Path::Paths, ptcl::Int64, rng::Mersenne
     end
 
     for tSlice = 1:Param.nTsl
-        Path.beads[tSlice,ptcl] = Path.beads[tSlice,ptcl] + shift
+        @inbounds Path.beads[tSlice,ptcl] = Path.beads[tSlice,ptcl] + shift
         UpdatePotential(Path, tSlice, ptcl, Param.lam)
     end
 
     for tSlice = 1:Param.nTsl
-        newAction += ComputeAction(Param, Path,tSlice)
+        @inbounds newAction += ComputeAction(Param, Path,tSlice)
     end
     newAction *= tauO2
 
@@ -57,10 +57,10 @@ function CenterOfMassMove(Param::Params, Path::Paths, ptcl::Int64, rng::Mersenne
         Path.numAcceptCOM += 1
     else
         for tSlice = 1:Param.nTsl
-            Path.beads[tSlice,ptcl] = Path.beads[tSlice,ptcl] - shift
+            @inbounds Path.beads[tSlice,ptcl] = Path.beads[tSlice,ptcl] - shift
 
             for ptcl = 1:Param.nPar
-                Path.potentials[tSlice,ptcl] = oldPotentials[tSlice,ptcl]   # Restore old potentials
+                @inbounds Path.potentials[tSlice,ptcl] = oldPotentials[tSlice,ptcl]   # Restore old potentials
             end
         end
     end
