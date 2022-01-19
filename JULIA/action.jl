@@ -48,7 +48,7 @@ function ComputeAction(Param::Params, Path::Paths, tSlice::Int64)
     action = 0.0
     tModPlus = ModTslice(tSlice + 1, Param.nTsl)
 
-    for ptcl = 1:Param.nPar
+    @inbounds for ptcl = 1:Param.nPar
         if (CutOff(Path.beads[tSlice,ptcl],Path.beads[tModPlus,ptcl]))
             action += 0.0
         else
@@ -59,8 +59,9 @@ function ComputeAction(Param::Params, Path::Paths, tSlice::Int64)
     return action
 end
 
+# TODO: FIGURE OUT HOW TO MAKE THIS FUNCTION WORK WITH ExtPotential() AND @turbo
 @inline function UpdatePotential(Path::Paths, tSlice::Int64, ptcl::Int64, lam::Float64)
-    Path.potentials[tSlice,ptcl] = ExtPotential(lam,Path.beads[tSlice,ptcl])
+    @inbounds Path.potentials[tSlice,ptcl] = ExtPotential(lam,Path.beads[tSlice,ptcl])
 end
 
 function UpdateDeterminant(Param::Params, Path::Paths, tSlice::Int64, ptcl::Int64)

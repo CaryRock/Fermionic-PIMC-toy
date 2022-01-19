@@ -6,8 +6,11 @@ using Dates
 using Random
 using ArgParse
 using Printf
+using LoopVectorization
 using ProgressBars  # Entirely vain - just gives the pretty progress bar
 using UUIDs         # I sort-of despise this language. I really kind of do.
+
+using TimerOutputs  # Optimization profiling
 
 struct Params
     nPar::Int64             # Number of particles
@@ -323,7 +326,6 @@ file_name = "$(@sprintf("%06.3f",temp))-$(@sprintf("%04.0f",numParticles))-$(@sp
     determinants    = zeros(Float64, numTimeSlices, numParticles)
     potentials      = zeros(Float64, numTimeSlices, numParticles)
     numHistBins = 0
-    #sweepsToBin = 50
 
 #TODO: I'VE NAMED THINGS STUPIDLY. UNSTUPIDIFY THEM. NAMELY, binWidth && numMCbins
     Prms = Params(numParticles,     #nPar
@@ -353,8 +355,8 @@ file_name = "$(@sprintf("%06.3f",temp))-$(@sprintf("%04.0f",numParticles))-$(@sp
     PIMC(Prms, Path, numMCsteps, set, rng)
 
 ### Collect and output any final results ######################################
-    Path.numAcceptCOM       /= ( sweepsToBin * numSamples )
-    Path.numAcceptStaging /= ( sweepsToBin * numSamples )
+    Path.numAcceptCOM       /= ( numEquilibSteps + sweepsToBin * numSamples )*numTimeSlices
+    Path.numAcceptStaging /= ( numEquilibSteps + sweepsToBin * numSamples )*numTimeSlices
     logName = "ce-log-" * file_name
     WriteHeader(logName, "#PIMCID: $uid")
     WriteHeader(logName, "CoM Acceptance Ratio:\t\t$(Path.numAcceptCOM)")

@@ -1,7 +1,7 @@
 # Contains all the code that actually performs the PIMC, but not the requisite
 # helper functions that they call - obviously not meant to be called on its own
 
-using Printf
+#using Printf
 
 # This should probably go in the "action.jl" file
 function InitializeDeterminants(Param::Params, Path::Paths)
@@ -12,7 +12,7 @@ function InitializeDeterminants(Param::Params, Path::Paths)
     end
 end
 
-function CenterOfMassMove(Param::Params, Path::Paths, ptcl::Int64, rng::MersenneTwister)
+function CenterOfMassMove!(Param::Params, Path::Paths, ptcl::Int64, rng::MersenneTwister)
     # Attempts a CoM update, displacing the entire particle worldline
     delta = Param.delta
     shift = Shift(rng, delta) 
@@ -23,16 +23,16 @@ function CenterOfMassMove(Param::Params, Path::Paths, ptcl::Int64, rng::Mersenne
 
     # Store the postiions on the worldline
     for tSlice = 1:Param.nTsl
-        oldAction += ComputeAction(Param, Path,tSlice)
+        @inbounds oldAction = oldAction + ComputeAction(Param, Path,tSlice)
     end
     oldAction *= tauO2
 
     # Save old potentials to avoid recalculating them
     oldPotentials = zeros(Float64, Param.nTsl, Param.nPar)
     #oldPotentials = copy(Path.potentials)
-    for tSlice = 1:Param.nTsl
+    for tSlice = 1:Param.nTsl    # @turbo
         for ptcl = 1:Param.nPar
-            @inbounds oldPotentials[tSlice,ptcl] = Path.potentials[tSlice,ptcl]
+            @inbounds oldPotentials[tSlice,ptcl] = Path.potentials[tSlice,ptcl]   #@inbounds
         end
     end
 
@@ -43,30 +43,30 @@ function CenterOfMassMove(Param::Params, Path::Paths, ptcl::Int64, rng::Mersenne
         # TODO: IMPLEMENT DETERMINANT RECOMPUTATION (only for required determinants, of course)
     end
 
-    for tSlice = 1:Param.nTsl
-        @inbounds Path.beads[tSlice,ptcl] = Path.beads[tSlice,ptcl] + shift
-        UpdatePotential(Path, tSlice, ptcl, Param.lam)
+    for tSlice = 1:Param.nTsl   # @turbo
+        @inbounds Path.beads[tSlice,ptcl] = Path.beads[tSlice,ptcl] + shift   # @inbounds
+        UpdatePotential(Path, Param.nTsl, Param.nPar, Param.lam)
     end
 
     for tSlice = 1:Param.nTsl
-        @inbounds newAction += ComputeAction(Param, Path,tSlice)
+        @inbounds newAction = newAction + ComputeAction(Param, Path,tSlice)
     end
     newAction *= tauO2
 
-    if rand(rng) < exp(-(newAction - oldAction))
-        Path.numAcceptCOM += 1
+    if rand(rng) < exp(-(newAction - oldAction))    # TODO: FIX THIS SO THAT IT IS ONLY DONE WHEN IT IS SUPPOSED TO
+        Path.numAcceptCOM = Path.numAcceptCOM + 1
     else
-        for tSlice = 1:Param.nTsl
-            @inbounds Path.beads[tSlice,ptcl] = Path.beads[tSlice,ptcl] - shift
+        for tSlice = 1:Param.nTsl # @turbo
+            @inbounds Path.beads[tSlice,ptcl] = Path.beads[tSlice,ptcl] - shift   # @inbounds
 
             for ptcl = 1:Param.nPar
-                @inbounds Path.potentials[tSlice,ptcl] = oldPotentials[tSlice,ptcl]   # Restore old potentials
+                @inbounds Path.potentials[tSlice,ptcl] = oldPotentials[tSlice,ptcl]   # Restore old potentials  # @inbounds
             end
         end
     end
 end
 
-function StagingMove(Param::Params, Path::Paths, ptcl::Int64, rng::MersenneTwister)
+function StagingMove!(Param::Params, Path::Paths, ptcl::Int64, rng::MersenneTwister)
     #=
     Attempts a staging move, which exactly samples the free-particle propagator
     between two positions.
@@ -88,7 +88,7 @@ function StagingMove(Param::Params, Path::Paths, ptcl::Int64, rng::MersenneTwist
     oldDeterminant  = zeros(m-1)
 
     # Choose the start and end of the stage
-    alpha_start     = rand(1:Param.nTsl)    # This needs to be inclusive - it is here
+    alpha_start     = rand(rng, 1:Param.nTsl)    # This needs to be inclusive - it is here
     alpha_end       = ModTslice((alpha_start + m), Param.nTsl)
 
     for a = 1:m-1
@@ -96,7 +96,7 @@ function StagingMove(Param::Params, Path::Paths, ptcl::Int64, rng::MersenneTwist
         oldBeads[a]         = Path.beads[tSlice,ptcl]
         oldPotentials[a]    = Path.potentials[tSlice,ptcl]
         oldDeterminant[a]   = Path.determinants[tSlice,ptcl]
-        oldAction           += tauO2 * ComputeAction(Param, Path, tSlice)
+        oldAction           = oldAction + tauO2 * ComputeAction(Param, Path, tSlice)
     end
 
     for a = 1:m-1
@@ -108,17 +108,17 @@ function StagingMove(Param::Params, Path::Paths, ptcl::Int64, rng::MersenneTwist
                                 tau * Path.beads[alpha_end,ptcl]) / (tau + tau1)
         sigma2                      = 2.0 * Param.lam / (1.0 / tau + 1.0 / tau1)
         Path.beads[tSlice,ptcl]     = avex + sqrt(sigma2) * randn(rng)
-        UpdatePotential(Path,tSlice, ptcl, Param.lam)
+        UpdatePotential(Path, Param.nTsl, Param.nPar, Param.lam)
         UpdateDeterminant(Param, Path, tSlice, ptcl)
-        newAction                   += tauO2 * ComputeAction(Param, Path,tSlice)
+        newAction                   = newAction + tauO2 * ComputeAction(Param, Path,tSlice)
             # See Ceperley about this (Potential) Action, how it relates to the
             # Primitive approximation, extra factors of tau in the "accuracy", 
             # etc. In the first few sections.
     end
     
     # Perform the Metropolis step, if we reject, revert the worldline
-    if (rand(rng) < exp(-(newAction - oldAction)))
-        Path.numAcceptStaging += 1
+    if rand(rng) < exp(-(newAction - oldAction))
+        Path.numAcceptStaging = Path.numAcceptStaging + 1
     else
         for a = 1:m-1
             tSlice = ModTslice((alpha_start + a), Param.nTsl)
@@ -141,7 +141,7 @@ function Bin(Param::Params, Path::Paths)
         elseif binLoc > Param.numSpatialBins
             binLoc = Param.numSpatialBins
         end
-        binArray[binLoc] += 1
+        binArray[binLoc] = binArray[binLoc] + 1
     end
     
     return binArray
@@ -150,48 +150,48 @@ end
 function SpatialBinCver(Param::Params, Path::Paths, binArrCount::Vector{Float64})
     binLoc = -1
     for i = 1:Param.numSpatialBins
-        binArrCount[i] = 0
+        @inbounds binArrCount[i] = 0
     end
 
     for tSlice = 1:Param.nTsl
         # DON'T FORGET THE "JULIA OFFSET" - +1 BECAUSE JULIA
-        binLoc = 1 + trunc(Int, (Path.beads[tSlice,1] - Param.x_min)/Param.spatialBinWidth)
+        @inbounds binLoc = 1 + trunc(Int, (Path.beads[tSlice,1] - Param.x_min)/Param.spatialBinWidth)
         if binLoc < 1
             binLoc = 1
         elseif binLoc > Param.numSpatialBins
             binLoc = Param.numSpatialBins
         end
-        binArrCount[binLoc] += 1
+        binArrCount[binLoc] = binArrCount[binLoc] + 1
     end
 end
 
 function UpdateMC(Param::Params, Path::Paths, rng::MersenneTwister)
     for time = 1:Param.nTsl        
-        for ptcl = 1:rand(1:Param.nPar)
-             CenterOfMassMove(Param, Path, ptcl, rng)
+        for ptcl = 1:rand(rng, 1:Param.nPar)
+            CenterOfMassMove!(Param, Path, ptcl, rng)
         end
         
-        for ptcl = 1:rand(1:Param.nPar)
-             StagingMove(Param, Path, ptcl, rng)
+        for ptcl = 1:rand(rng, 1:Param.nPar)
+            StagingMove!(Param, Path, ptcl, rng)
         end
     end
 end
 
 function PIMC(Param::Params, Path::Paths, numSteps::Int64, set::Dict{String, Any}, rng::MersenneTwister)
-    x1_ave      = 0.0
-    x2_ave      = 0.0
-    equilSkip   = Param.numEquilibSteps
-    width       = Param.numSpatialBins
-    energy1     = 0.0
-    energy2     = 0.0
-    ke          = 0.0
-    pe          = 0.0
-    tau         = Param.tau
-    binSize     = Param.sweepsToBin # It's dumb and I need to fix it
+    x1_ave      = 0.0::Float64
+    x2_ave      = 0.0::Float64
+    equilSkip   = Param.numEquilibSteps::Int64
+    width       = Param.numSpatialBins::Int64
+    energy1     = 0.0::Float64
+    energy2     = 0.0::Float64
+    ke          = 0.0::Float64
+    pe          = 0.0::Float64
+    tau         = Param.tau::Float64
+    binSize     = Param.sweepsToBin::Int64 # It's dumb and I need to fix it
 
     distributionArray   = zeros(Float64, width)
     distArrayCount      = zeros(Float64, width)
-    stepSize            = (Param.x_max - Param.x_min)/(width - 1)
+    stepSize            = (Param.x_max - Param.x_min)/(width - 1)::Int64
         # These are the x-axis spatial bins into which the distribution will be binned
     distrbtnBins        = collect(range(Param.x_min, Param.x_max, step=stepSize))
     #deleteat!(distrbtnBins, length(distrbtnBins))   # Stupid range function - 
@@ -246,28 +246,28 @@ function PIMC(Param::Params, Path::Paths, numSteps::Int64, set::Dict{String, Any
 
         if (steps % Param.observableSkip == 0)
             ### Start accumulating expectation values, etc.
-            binCount += 1
+            binCount = binCount + 1
 
             if (set["spatial-distribution"])
                 SpatialBinCver(Param, Path, distArrayCount)
-                distributionArray += distArrayCount
+                distributionArray = distributionArray + distArrayCount
             end
 
-            energy1     += Energy(Param, Path)
-            energy2     += energy1*energy1
-            ke          += Path.KE
-            pe          += Path.PE
+            energy1     = energy1 + Energy(Param, Path)
+            energy2     = energy2 + energy1*energy1
+            ke          = ke + Path.KE
+            pe          = pe + Path.PE
 
             for i = 1:Param.nTsl
                 for j = 1:Param.nPar
-                    x1_ave += Path.beads[i,j]
-                    x2_ave += Path.beads[i,j] * Path.beads[i,j]
+                    @inbounds x1_ave = x1_ave + Path.beads[i,j]
+                    @inbounds x2_ave = x2_ave + Path.beads[i,j] * Path.beads[i,j]
                 end
             end
 
             if (binCount % binSize == 0)
                 ### Write the binned data to file
-                sampleCount += 1
+                sampleCount = sampleCount + 1
                 if (sampleCount % 256 == 0)
                     println("Writing sample $sampleCount / $(Param.numSamples)")
                 end
@@ -303,7 +303,7 @@ function PIMC(Param::Params, Path::Paths, numSteps::Int64, set::Dict{String, Any
             end # end of the binning if()
         end # enf of the observableSkip if()
         
-        steps += 1
+        steps = steps + 1
     end # end of the while(samples) loop
 
     println("UUID of file(s): $(Param.uid)")
