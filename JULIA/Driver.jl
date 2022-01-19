@@ -361,7 +361,7 @@ file_name = "$(@sprintf("%06.3f",temp))-$(@sprintf("%04.0f",numParticles))-$(@sp
     WriteHeader(logName, "#PIMCID: $uid")
     WriteHeader(logName, "CoM Acceptance Ratio:\t\t$(Path.numAcceptCOM)")
     WriteHeader(logName, "Staging Acceptance Ratio:\t\t$(Path.numAcceptStaging)")
-    println("Accepted CoM ratio: $(Path.numAcceptCOM)")
+    println("Accepted CoM ratio: \t$(Path.numAcceptCOM)")
     println("Accepted Staging ratio: $(Path.numAcceptStaging)\n")
     
     cd("../..")
