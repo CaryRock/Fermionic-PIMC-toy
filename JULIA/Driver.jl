@@ -10,6 +10,8 @@ using LoopVectorization
 using ProgressBars  # Entirely vain - just gives the pretty progress bar
 using UUIDs         # I sort-of despise this language. I really kind of do.
 
+using .Threads
+
 using TimerOutputs  # Optimization profiling
 
 struct Params
