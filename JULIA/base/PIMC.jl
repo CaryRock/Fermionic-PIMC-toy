@@ -2,7 +2,8 @@
 # requisite helper functions that they call - obviously not meant to be called 
 # on its own.
 
-@inbounds function CenterOfMassMove!(Param::Params, Path::Paths, ptcl::Int64, rng::MersenneTwister)
+@inbounds function CenterOfMassMove!(Manent::Function, Param::Params, 
+                            Path::Paths, ptcl::Int64, rng::MersenneTwister)
     # Attempts a CoM update, displacing the entire particle worldline
     delta = Param.delta
     shift = Shift(rng, delta) 
@@ -38,6 +39,7 @@
     else
         # For >1D, definitely need to recompute determinants
         # TODO: IMPLEMENT DETERMINANT RECOMPUTATION (only for required determinants, of course)
+        UpdateManent()
     end
 
     for tSlice = 1:Param.nTsl   # @turbo
@@ -65,7 +67,8 @@
 ###############################################################################
 end
 
-@inbounds function StagingMove!(Param::Params, Path::Paths, ptcl::Int64, rng::MersenneTwister)
+@inbounds function StagingMove!(Manent::Function, Param::Params, Path::Paths, 
+                                ptcl::Int64, rng::MersenneTwister)
     #=
     Attempts a staging move, which exactly samples the free-particle propagator
     between two positions.
@@ -95,20 +98,21 @@ end
         oldBeads[a]         = Path.beads[tSlice,ptcl]
         oldPotentials[a]    = Path.potentials[tSlice,ptcl]
         oldDeterminant[a]   = Path.determinants[tSlice,ptcl]
-        oldAction           = oldAction + tauO2 * ComputeAction(Param, Path, tSlice)
+        oldAction           += tauO2 * ComputeAction(Param, Path, tSlice)
     end
 
     for a = 1:m-1
-        tSlice                      = ModTslice((alpha_start + a), Param.nTsl)
-        temp                        = ModTslice((tSlice - 1), Param.nTsl)
+        tSlice                  = ModTslice((alpha_start + a), Param.nTsl)
+        temp                    = ModTslice((tSlice - 1), Param.nTsl)
         temp == 0 ? tSlicem1 = Param.nTsl : tSlicem1 = temp
-        tau1                        = (m - a) * tau
-        avex                = (tau1 * Path.beads[tSlicem1,ptcl] + 
+        tau1                    = (m - a) * tau
+        avex                    = (tau1 * Path.beads[tSlicem1,ptcl] + 
                                 tau * Path.beads[alpha_end,ptcl]) / (tau + tau1)
-        sigma2                      = 2.0 * Param.lam / (1.0 / tau + 1.0 / tau1)
-        Path.beads[tSlice,ptcl]     = avex + sqrt(sigma2) * randn(rng)
+        sigma2                  = 2.0 * Param.lam / (1.0 / tau + 1.0 / tau1)
+        Path.beads[tSlice,ptcl] = avex + sqrt(sigma2) * randn(rng)
         UpdatePotential(Path, Param.nTsl, Param.nPar, Param.lam)
-        UpdateDeterminant(Param, Path, tSlice, ptcl)
+        #UpdateDeterminant(Param, Path, tSlice, ptcl)
+        UpdateManent(Manent, Param, Path, tSlice, ptcl)
         newAction                   = newAction + tauO2 * ComputeAction(Param, Path,tSlice)
             # See Ceperley about this (Potential) Action, how it relates to the
             # Primitive approximation, extra factors of tau in the "accuracy", 
@@ -166,14 +170,14 @@ end
     end
 end
 
-function UpdateMC(Param::Params, Path::Paths, rng::MersenneTwister)
+function UpdateMC(Manent::Function, Param::Params, Path::Paths, rng::MersenneTwister)
     for time = 1:Param.nTsl        
         for ptcl = 1:rand(rng, 1:Param.nPar)
             CenterOfMassMove!(Param, Path, ptcl, rng)
         end
         
         for ptcl = 1:rand(rng, 1:Param.nPar)
-            StagingMove!(Param, Path, ptcl, rng)
+            StagingMove!(Manent, Param, Path, ptcl, rng)
         end
     end
 end
@@ -226,11 +230,13 @@ function PIMC(Param::Params, Path::Paths, numSteps::Int64, set::Dict{String, Any
 ### Initialize the determinants and potentials arrays #########################
 # TODO: ERROR CHECKING FOR MAKING SURE THAT ONLY ONE OF BOSONS, FERMIONS, OR 
 # BOLTZMANNONS ARE BEING SIMULATED
-
+    function Manent() end
     if ( !set["boson"] )
         if ( !set["boltzmannon"] )
+            Manent = Determinant
             InitializeDeterminants(Param, Path)
         elseif ( set["boltzmannon"] )
+            Manent = Boltzmannant
             InitializeBoltzmannant(Param, Path)
         else
             # Abort -- too many options
@@ -241,6 +247,7 @@ function PIMC(Param::Params, Path::Paths, numSteps::Int64, set::Dict{String, Any
         end
     elseif ( set["boson"] )
         if ( !set["boltzmannon"] )
+            Manent = Permanent
             InitializePermanents(Param, Path)
         else set["boltzmannon"]
             print("Please choose either fermions, bosons, or boltzmannons to ")
@@ -249,6 +256,7 @@ function PIMC(Param::Params, Path::Paths, numSteps::Int64, set::Dict{String, Any
             exit()
         end
     else
+        Manent = Boltzmannent
         InitializeBoltzmannant(Param, Path) # This will just set Path.det~~ = 1
     end
 
@@ -262,14 +270,14 @@ function PIMC(Param::Params, Path::Paths, numSteps::Int64, set::Dict{String, Any
     # Warmup
     println("Equilibriating the simulation...")
     for steps = ProgressBar(1:equilSkip)
-        UpdateMC(Param, Path, rng)
+        UpdateMC(Manent, Param, Path, rng)
     end
 
     println("Starting the data collection now...")
     steps = equilSkip + 1   # Because Julia doesn't "reuse" variables like C/C++ would
     while sampleCount < Param.numSamples
         # The toy code attempts both updates - should I do that here as well?
-        UpdateMC(Param, Path, rng)
+        UpdateMC(Manent, Param, Path, rng)
 
         if (steps % Param.observableSkip == 0)
             ### Start accumulating expectation values, etc.
@@ -280,8 +288,8 @@ function PIMC(Param::Params, Path::Paths, numSteps::Int64, set::Dict{String, Any
                 distributionArray = distributionArray + distArrayCount
             end
 
-            energy1     = energy1 + Energy(Param, Path)
-            energy2     = energy2 + energy1*energy1
+            energy1     += Energy(Param, Path)
+            energy2     += energy1*energy1
             ke          = ke + Path.KE
             pe          = pe + Path.PE
 

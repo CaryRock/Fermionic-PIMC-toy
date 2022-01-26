@@ -4,7 +4,7 @@
 
 # This is the basic method of computing the KE estimator. This shouldn't be 
 # used. Instead, the thermodynamic KE esetimator will be used.
-function KineticEnergy(Param, beads::Matrix{Float64})
+@inbounds function KineticEnergy(Param, beads::Matrix{Float64})
     # Computes the KE of the particle(s)
     #dim = 1.0   # Float to aid julia's casting
     tot = 0.0
@@ -21,16 +21,13 @@ function KineticEnergy(Param, beads::Matrix{Float64})
     return energy
 end
 
-function PotentialEnergy(Param::Params, potentials::Matrix{Float64})
+@inbounds function PotentialEnergy(Param::Params, potentials::Matrix{Float64})
     # Computes the potential energy of the particle(s)
     pe = 0.0
 
     for tSlice = 1:Param.nTsl
+        tModPlus = ModTslice(tSlice + 1, Param.nTsl)
         for ptcl = 1:Param.nPar
-            tModPlus = ModTslice(tSlice + 1, Param.nTsl)
-#            R = beads[tSlice,ptcl]
-#            Rplus = beads[tModPlus,ptcl]
-#            pe += ExtPotential(lam,R) + ExtPotential(lam,Rplus)
             pe += potentials[tSlice, ptcl] + potentials[tModPlus,ptcl]
         end
     end

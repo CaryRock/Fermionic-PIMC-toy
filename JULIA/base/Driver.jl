@@ -243,12 +243,12 @@ include("expectations.jl")  # Contains the methods that compute <x>, <x^2>, etc.
 #include("pyBinData.jl")     # Contains only the Python binning implementation
 
 function GetCommandLineInvocation(ARGS)
-   invocation = "julia $PROGRAM_FILE "
-   for i = 1:length(ARGS)
+    invocation = "julia $PROGRAM_FILE "
+    for i = 1:length(ARGS)
         invocation *= ARGS[i] * " "
-   end
-   # There's technically that extra space at the end, but that's also in the production code's output, so...
-   return invocation
+    end
+    # There's technically that extra space at the end, but that's also in the production code's output, so...
+    return invocation
 end
 
 # Optimize - https://docs.julialang.org/en/v1/manual/performance-tips

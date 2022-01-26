@@ -1,5 +1,5 @@
 # Contains the functions that interact with the action of the particle(s)
-function WhichManent(Manent::Function, Determinant::Function, Permanant::Function, boson::Bool)
+function WhichManent(Manent::Function, Determinant::Function, Permanant::Function, boson::Bool, boltzmannon::Bool)
     if boson
         return Permanant
     else
@@ -7,7 +7,7 @@ function WhichManent(Manent::Function, Determinant::Function, Permanant::Functio
     end
 end
 
-function Determinant(Param::Params, Path::Paths,tSlice::Int64)
+@inbounds function Determinant(Param::Params, Path::Paths,tSlice::Int64)
     # Just short-circuit the whole thing for Boltzmannons
     return 1.0
     tau = Param.tau
@@ -32,7 +32,7 @@ function Determinant(Param::Params, Path::Paths,tSlice::Int64)
     return det(Path.determinants)
 end
 
-function Permanent(Param::Params, Path::Paths, tSlice::Int64)
+@inbounds function Permanent(Param::Params, Path::Paths, tSlice::Int64)
     Neg1o2tau = -1/(2 * Param.tau)
     tModPlus = ModTslice(tSlice + 1, Param.nTsl)
 
@@ -50,7 +50,7 @@ function Permanent(Param::Params, Path::Paths, tSlice::Int64)
     end
 end
 
-function InitializeDeterminants(Param::Params, Path::Paths)
+@inbounds function InitializeDeterminants(Param::Params, Path::Paths)
     for tSlice = 1:Param.nTsl
         for ptcl = 1:Param.nPar
             Path.determinants[tSlice,ptcl] = Determinant(Param, Path, tSlice)
@@ -59,7 +59,7 @@ function InitializeDeterminants(Param::Params, Path::Paths)
 end
 # Note: Potential "simplification": add as an argument "Manent::Function"to a 
 # more general form of either of these two and combine both into the same. 
-function InitializePermanents(Param::Params, Path::Paths)
+@inbounds function InitializePermanents(Param::Params, Path::Paths)
     for tSlice = 1:Param.nTsl
         for ptcl = 1:Param.nPar
             Path.determinants[tSlice, ptcl] = Permanent(Param, Path, tSlice) #TODO: Is this a todo? It's convenient, though
@@ -67,7 +67,7 @@ function InitializePermanents(Param::Params, Path::Paths)
     end
 end
 
-function InitializeBoltzmannant(Param::Params, Path::Paths)
+@inbounds function InitializeBoltzmannant(Param::Params, Path::Paths)
     for tSlice = 1:Param.nTsl
         for ptcl = 1:Param.nPar
             Path.determinants[tSlice, ptcl] = 1.0
@@ -75,7 +75,7 @@ function InitializeBoltzmannant(Param::Params, Path::Paths)
     end
 end
 
-function InstantiatePotentials(Param::Params, Path::Paths)
+@inbounds function InstantiatePotentials(Param::Params, Path::Paths)
     for tSlice = 1:Param.nTsl
         for ptcl = 1:Param.nPar
             tModPlus = ModTslice(tSlice+1,Param.nTsl)
@@ -149,4 +149,18 @@ function UpdateDeterminant(Param::Params, Path::Paths, tSlice::Int64, ptcl::Int6
 
     Path.determinants[tModMinus,ptcl] = Determinant(Param, Path, tModMinus)
     Path.determinants[tSlice,ptcl] = Determinant(Param, Path, tSlice)
+end
+# Could these be combined into a "UpdateManent"?
+function UpdatePermanent(Param::Params, Path::Paths, tSlice::Int64, ptcl::Int64)
+    tModMinus = ModTslice(tSlice - 1, Patam.nTsl)
+
+    Path.determinants[tModMinus, ptcl] = Permanent(Param, Path, tModMinus)
+    Path.determinants[tSlice, ptcl] = Permanent(Param, Path, tSlice)
+end
+
+function UpdateManent(Manent::Function, Param::Params, Path::Paths, tSlice::Int64, ptcl::Int64)
+    tModMinus = ModTslice(tSlice - 1, Param.nTsl)
+
+    Path.determinants[tModMinus, ptcl] = Manent(Param, Path, tModMinus)
+    Path.determinants[tSlice, ptcl] = Manent(Param, Path, tModMinus)
 end

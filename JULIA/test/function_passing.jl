@@ -8,25 +8,20 @@ function cube(x::Float64)
     return x * x * x
 end
 
-function which(g::Function, square::Function, cube::Function, y::Bool)
-    if y
-        return square
-    else
-        return cube
-    end
+function which(first::Function, second::Function, y::Bool)
+    y ? (return first) : (return second)
 end
 
 function main()
     x = 3.0
 
-    function g(x::Float64) end
-    y = rand(MersenneTwister())
-    #g(any_function::Function) = which(y)
-    g = which(g, square, cube, y < 0.5)
+    function g() end
+    #g = which(square, cube, rand() < 0.5)
+    (rand() < 0.5) ? (g = square) : (g = cube)
 
     println("x = $x")
-    z = g(x)
-    println("z = $z")
+    println("The function is $(nameof(var"g"))")
+    println("z = $(g(x))")
 
 end
 
