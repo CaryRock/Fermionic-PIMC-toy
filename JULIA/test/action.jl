@@ -1,5 +1,25 @@
 # Contains the functions that interact with the action of the particle(s)
 
+function Permanent(Param::Params, Path::Paths, tSlice::Int64)
+    tModPlus = ModTslice(tSlice + 1, Param.nTsl)
+    Neg1o2tau = -1.0/(2.0 * tau)
+
+    if (Param.nPar == 1)
+        return exp(Neg1o2tau * 
+                   (Path.beads[tSlice,1] - Path.beads[tModPlus,1])^2 )
+    elseif (Param.nPar == 2)
+        return ( 
+                exp(Neg1o2tau * (Path.beads[tSlice, 1] + Path.beads[tModPlus, 2] )^2) + 
+                exp(Neg1o2tau * (Path.beads[tSlice, 2] + Path.beads[tModPlus, 1] )^2)
+               )
+    else
+        println("This part isn't done yet!")
+        exit()
+    end
+
+
+end
+
 function Determinant(Param::Params, Path::Paths,tSlice::Int64)
     # Just short-circuit the whole thing for Boltzmannons
     return 1.0

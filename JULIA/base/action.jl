@@ -1,4 +1,11 @@
 # Contains the functions that interact with the action of the particle(s)
+function WhichManent(Manent::Function, Determinant::Function, Permanant::Function, boson::Bool)
+    if boson
+        return Permanant
+    else
+        return Determinant
+    end
+end
 
 function Determinant(Param::Params, Path::Paths,tSlice::Int64)
     # Just short-circuit the whole thing for Boltzmannons
@@ -23,6 +30,49 @@ function Determinant(Param::Params, Path::Paths,tSlice::Int64)
         end
     end
     return det(Path.determinants)
+end
+
+function Permanent(Param::Params, Path::Paths, tSlice::Int64)
+    Neg1o2tau = -1/(2 * Param.tau)
+    tModPlus = ModTslice(tSlice + 1, Param.nTsl)
+
+    if (Param.nPar == 1)
+        return exp(Neg1o2tau * 
+                   (Path.beads[tSlice,1] - Path.beads[tModPlus,1])^2 )
+    elseif (Param.nPar == 2)
+        return ( 
+                exp(Neg1o2tau * (Path.beads[tSlice, 1] + Path.beads[tModPlus, 2] )^2) + 
+                exp(Neg1o2tau * (Path.beads[tSlice, 2] + Path.beads[tModPlus, 1] )^2)
+               )
+    else
+        println("This part isn't done yet!")
+        exit()
+    end
+end
+
+function InitializeDeterminants(Param::Params, Path::Paths)
+    for tSlice = 1:Param.nTsl
+        for ptcl = 1:Param.nPar
+            Path.determinants[tSlice,ptcl] = Determinant(Param, Path, tSlice)
+        end
+    end
+end
+# Note: Potential "simplification": add as an argument "Manent::Function"to a 
+# more general form of either of these two and combine both into the same. 
+function InitializePermanents(Param::Params, Path::Paths)
+    for tSlice = 1:Param.nTsl
+        for ptcl = 1:Param.nPar
+            Path.determinants[tSlice, ptcl] = Permanent(Param, Path, tSlice) #TODO: Is this a todo? It's convenient, though
+        end
+    end
+end
+
+function InitializeBoltzmannant(Param::Params, Path::Paths)
+    for tSlice = 1:Param.nTsl
+        for ptcl = 1:Param.nPar
+            Path.determinants[tSlice, ptcl] = 1.0
+        end
+    end
 end
 
 function InstantiatePotentials(Param::Params, Path::Paths)

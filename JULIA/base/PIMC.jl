@@ -1,18 +1,8 @@
-# Contains all the code that actually performs the PIMC, but not the requisite
-# helper functions that they call - obviously not meant to be called on its own
+# Contains all the code that actually performs the PIMC, but not all of the 
+# requisite helper functions that they call - obviously not meant to be called 
+# on its own.
 
-#using Printf
-
-# This should probably go in the "action.jl" file
-function InitializeDeterminants(Param::Params, Path::Paths)
-    for tSlice = 1:Param.nTsl
-        for ptcl = 1:Param.nPar
-            Path.determinants[tSlice,ptcl] = Determinant(Param, Path, tSlice)
-        end
-    end
-end
-
-function CenterOfMassMove!(Param::Params, Path::Paths, ptcl::Int64, rng::MersenneTwister)
+@inbounds function CenterOfMassMove!(Param::Params, Path::Paths, ptcl::Int64, rng::MersenneTwister)
     # Attempts a CoM update, displacing the entire particle worldline
     delta = Param.delta
     shift = Shift(rng, delta) 
@@ -32,10 +22,17 @@ function CenterOfMassMove!(Param::Params, Path::Paths, ptcl::Int64, rng::Mersenn
     #oldPotentials = copy(Path.potentials)
     for tSlice = 1:Param.nTsl    # @turbo
         for ptcl = 1:Param.nPar
-            @inbounds oldPotentials[tSlice,ptcl] = Path.potentials[tSlice,ptcl]   #@inbounds
+            oldPotentials[tSlice,ptcl] = Path.potentials[tSlice,ptcl]   #@inbounds
         end
     end
 
+####### TODO: THIS SECTION NEEDS TO BE REWORKED ###############################
+# Boltzmannons don't interact with other particles, so this section would be
+# correct for them as-is, but bosons and fermions definitely do. Thus, even for
+# a single particle, the values of "Path.determinant" (which actually plays
+# double duty for all three cases) need to be recomputed for two of the three
+# cases. This section should reflect that.
+###############################################################################
     if Param.nPar == 1
         # For a single particle, the determinants don't need updating - translational symmetry for line shift
     else
@@ -44,7 +41,7 @@ function CenterOfMassMove!(Param::Params, Path::Paths, ptcl::Int64, rng::Mersenn
     end
 
     for tSlice = 1:Param.nTsl   # @turbo
-        @inbounds Path.beads[tSlice,ptcl] = Path.beads[tSlice,ptcl] + shift   # @inbounds
+        Path.beads[tSlice,ptcl] = Path.beads[tSlice,ptcl] + shift   # @inbounds
         UpdatePotential(Path, Param.nTsl, Param.nPar, Param.lam)
     end
 
@@ -58,21 +55,22 @@ function CenterOfMassMove!(Param::Params, Path::Paths, ptcl::Int64, rng::Mersenn
         Path.numAcceptCOM = Path.numAcceptCOM + 1
     else
         for tSlice = 1:Param.nTsl # @turbo
-            @inbounds Path.beads[tSlice,ptcl] = Path.beads[tSlice,ptcl] - shift   # @inbounds
+            Path.beads[tSlice,ptcl] = Path.beads[tSlice,ptcl] - shift   # @inbounds
 
             for ptcl = 1:Param.nPar
-                @inbounds Path.potentials[tSlice,ptcl] = oldPotentials[tSlice,ptcl]   # Restore old potentials  # @inbounds
+                Path.potentials[tSlice,ptcl] = oldPotentials[tSlice,ptcl]   # Restore old potentials  # @inbounds
             end
         end
     end
+###############################################################################
 end
 
-function StagingMove!(Param::Params, Path::Paths, ptcl::Int64, rng::MersenneTwister)
+@inbounds function StagingMove!(Param::Params, Path::Paths, ptcl::Int64, rng::MersenneTwister)
     #=
     Attempts a staging move, which exactly samples the free-particle propagator
     between two positions.
 
-    See: http://link.aps.org/doi/10.1103/PhysRevB.31.4234
+    See: http://link.aps.org/doi/10.1103/PhysRevB.31.4234 
 
     Note: does not work for periodic boundary conditions.
     =#
@@ -130,6 +128,7 @@ function StagingMove!(Param::Params, Path::Paths, ptcl::Int64, rng::MersenneTwis
     end
 end
 
+#=
 function Bin(Param::Params, Path::Paths)
     binLoc = -1
 
@@ -147,16 +146,17 @@ function Bin(Param::Params, Path::Paths)
     
     return binArray
 end
+=#
 
-function SpatialBinCver(Param::Params, Path::Paths, binArrCount::Vector{Float64})
+@inbounds function SpatialBinCver(Param::Params, Path::Paths, binArrCount::Vector{Float64})
     binLoc = -1
     for i = 1:Param.numSpatialBins
-        @inbounds binArrCount[i] = 0
+        binArrCount[i] = 0
     end
 
     for tSlice = 1:Param.nTsl
         # DON'T FORGET THE "JULIA OFFSET" - +1 BECAUSE JULIA
-        @inbounds binLoc = 1 + trunc(Int, (Path.beads[tSlice,1] - Param.x_min)/Param.spatialBinWidth)
+        binLoc = 1 + trunc(Int, (Path.beads[tSlice,1] - Param.x_min)/Param.spatialBinWidth)
         if binLoc < 1
             binLoc = 1
         elseif binLoc > Param.numSpatialBins
@@ -179,6 +179,8 @@ function UpdateMC(Param::Params, Path::Paths, rng::MersenneTwister)
 end
 
 function PIMC(Param::Params, Path::Paths, numSteps::Int64, set::Dict{String, Any}, rng::MersenneTwister)
+### Set up the required variables, arrays, and determine what kind of particles
+# are being simulated. Also, write out some of the various log files.
     x1_ave      = 0.0::Float64
     x2_ave      = 0.0::Float64
     equilSkip   = Param.numEquilibSteps::Int64
@@ -199,10 +201,6 @@ function PIMC(Param::Params, Path::Paths, numSteps::Int64, set::Dict{String, Any
                                     # it doesn't act like it does in Python. 
                                     # In Julia, it includes the endpoint.
                                     # Thus, remove that last point.
-    #if length(distrbtnBins) != width + 1
-    #    println("Failure! distributionArray = $width while bin = $(length(distrbtnBins))")
-    #    exit()
-    #end
 
     println("\nX_max = $(Param.x_max)\nX_Min = $(Param.x_min)")
     println("numSpatialBins = $width")
@@ -223,9 +221,37 @@ function PIMC(Param::Params, Path::Paths, numSteps::Int64, set::Dict{String, Any
             print(file, "\n")
         end
     end
+###############################################################################
 
-    # Initialize the determinants and potentials arrays
-    InitializeDeterminants(Param, Path)
+### Initialize the determinants and potentials arrays #########################
+# TODO: ERROR CHECKING FOR MAKING SURE THAT ONLY ONE OF BOSONS, FERMIONS, OR 
+# BOLTZMANNONS ARE BEING SIMULATED
+
+    if ( !set["boson"] )
+        if ( !set["boltzmannon"] )
+            InitializeDeterminants(Param, Path)
+        elseif ( set["boltzmannon"] )
+            InitializeBoltzmannant(Param, Path)
+        else
+            # Abort -- too many options
+            print("Please choose either fermions, bosons, or boltzmannons to ")
+            print("simulate - you cannot set both the boson and boltzmannon ")
+            println("flags.")
+            exit()
+        end
+    elseif ( set["boson"] )
+        if ( !set["boltzmannon"] )
+            InitializePermanents(Param, Path)
+        else set["boltzmannon"]
+            print("Please choose either fermions, bosons, or boltzmannons to ")
+            print("simulate - you cannot set both the boson and boltzmannon ")
+            println("flags.")
+            exit()
+        end
+    else
+        InitializeBoltzmannant(Param, Path) # This will just set Path.det~~ = 1
+    end
+
     InstantiatePotentials(Param, Path)
     
     # MC iterations

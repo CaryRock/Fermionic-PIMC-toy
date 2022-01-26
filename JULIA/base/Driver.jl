@@ -88,7 +88,7 @@ function parse_commandline()
             help = "Sets the desired number of MC sweeps to bin over"
             arg_type = Int64
             default = 50
-        "--spatialBinWidth", "-b"
+        "--spatialBinWidth", "-w"
             help = "Sets the desired width of bins"
             arg_type = Float64
             default = 0.05
@@ -104,9 +104,13 @@ function parse_commandline()
             help = "Sets the maximum value for X - can be negative"
             arg_type = Float64
             default = 5.0
-
+        "--boson", "-b"
+            help = "Informs the simulation to use bosons instead of fermions."
+            action = :store_true
+        "--boltzmannon", "-z"
+            help = "Informs the simulation to use \"boltzmannons\" instead of fermions."
+            action = :store_true
 ### Optional Output Flags #####################################################
-# These currently don't do anything, but may be reimplemented later
         "--rawX1"
             help = "Reporti raw <x> - WARNING: GENERATES MUCH DATA"
             action = :store_true
