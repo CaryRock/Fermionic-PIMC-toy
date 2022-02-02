@@ -5,22 +5,15 @@
 @inbounds function CenterOfMassMove!(Manent::Function, Param::Params, 
                             Path::Paths, ptcl::Int64, rng::MersenneTwister)
     # Attempts a CoM update, displacing the entire particle worldline
-    delta = Param.delta
-    shift = Shift(rng, delta) 
+    shift = Shift(rng, Param.delta) 
     oldAction = 0.0
     newAction = 0.0
-    #tauO2 = Param.tau/2
 
-    # Store the postiions on the worldline
-    #for tSlice = 1:Param.nTsl
-    #    @inbounds oldAction = oldAction + ComputeAction(Param, Path, tSlice)
-    #end
     AltComputeAction(Param, Path, oldAction)
-    oldAction *= Param.tau/2 #tauO2
+    oldAction *= Param.tau/2
 
     # Save old potentials to avoid recalculating them
     oldPotentials = zeros(Float64, Param.nTsl, Param.nPar)
-    #oldPotentials = copy(Path.potentials)
     for tSlice = 1:Param.nTsl    # @turbo
         for ptcl = 1:Param.nPar
             oldPotentials[tSlice,ptcl] = Path.potentials[tSlice,ptcl]   #@inbounds
@@ -28,43 +21,32 @@
     end
 
 ####### TODO: THIS SECTION NEEDS TO BE REWORKED ###############################
-# Boltzmannons don't interact with other particles, so this section would be
-# correct for them as-is, but bosons and fermions definitely do. Thus, even for
-# a single particle, the values of "Path.determinant" (which actually plays
-# double duty for all three cases) need to be recomputed for two of the three
-# cases. This section should reflect that.
+# Boltzmannons don't interact with anything (other than interaction potentials),
+# so the -z options should result in the same old behavior. 
+# Fermions and bosons do interact, however, and should update accordingly.
 ###############################################################################
     if Param.nPar == 1
-        # For a single particle, the determinants don't need updating - only 
-        # the relative distance between beads is important, and this shifts the 
-        # whole line while keeping the interbead distance the same.
+        # Single particles don't need this update, I think
     else
-        # TODO: IMPLEMENT DETERMINANT RECOMPUTATION (only for required determinants, of course)
-        # Since, for multiple particles, only a single line is shifted, the
-        # relative distances between particles and their beads is changed, which
-        # means the whole thing needs to be recomputed. Ouch.
         UpdateManents(Manent, Param, Path)
     end
 
-    for tSlice = 1:Param.nTsl   # @turbo
-        Path.beads[tSlice,ptcl] = Path.beads[tSlice,ptcl] + shift   # @inbounds
+    for tSlice = 1:Param.nTsl
+        Path.beads[tSlice,ptcl] += shift
         UpdatePotential(Path, Param.nTsl, Param.nPar, Param.lam)
     end
 
-    #for tSlice = 1:Param.nTsl
-    #    @inbounds newAction = newAction + ComputeAction(Param, Path,tSlice)
-    #end
     AltComputeAction(Param, Path, newAction)
-    newAction *= Param.tau/2 #tauO2
+    newAction *= Param.tau/2
 
     if rand(rng) < exp(-(newAction - oldAction))    # TODO: FIX THIS SO THAT IT IS ONLY DONE WHEN IT IS SUPPOSED TO
-        Path.numAcceptCOM = Path.numAcceptCOM + 1
+        Path.numAcceptCOM += 1
     else
         for tSlice = 1:Param.nTsl # @turbo
-            Path.beads[tSlice,ptcl] = Path.beads[tSlice,ptcl] - shift   # @inbounds
+            Path.beads[tSlice,ptcl] -= shift
 
             for ptcl = 1:Param.nPar
-                Path.potentials[tSlice,ptcl] = oldPotentials[tSlice,ptcl]   # Restore old potentials  # @inbounds
+                Path.potentials[tSlice,ptcl] = oldPotentials[tSlice,ptcl]   # Restore old potentials
             end
         end
     end
@@ -117,11 +99,14 @@ end
         UpdatePotential(Path, Param.nTsl, Param.nPar, Param.lam)
         
         #UpdateDeterminant(Param, Path, tSlice, ptcl)
-        if (Manent == Determinant)
-            Path.determinants[tSlice, ptcl] = Determinant(Param, Path, tSlice)
-        elseif (Manent == Permanent)
-            Path.determinants[tSlice, ptcl] = Permanent(Param, Path, tSlice)
+        if (Param.nPar == 1)
         else
+            if (Manent == Determinant)
+                Path.determinants[tSlice, ptcl] = Determinant(Param, Path, tSlice)
+            elseif (Manent == Permanent)
+                Path.determinants[tSlice, ptcl] = Permanent(Param, Path, tSlice)
+            else
+            end
         end
 
         UpdateManent(Manent, Param, Path, tSlice, ptcl)

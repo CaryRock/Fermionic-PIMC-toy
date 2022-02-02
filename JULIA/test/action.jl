@@ -121,7 +121,6 @@ end
 
 Base.@propagate_inbounds function AltComputeAction(Param::Params, Path::Paths, action::Float64)
     # Computes the potential action of a particle along its worldline
-    #action = 0.0
     result = zeros(Float64, Param.nPar * Param.nTsl)
 
     for ptcl = 1:Param.nPar
@@ -142,8 +141,6 @@ Base.@propagate_inbounds function AltComputeAction(Param::Params, Path::Paths, a
             action += result[(ptcl - 1) * Param.nTsl + tSlice ]
         end
     end
-
-    #return action
 end
 
 @inline function UpdatePotential(Path::Paths, tSlice::Int64, ptcl::Int64, lam::Float64)
