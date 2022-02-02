@@ -1,18 +1,9 @@
-# Contains all the code that actually performs the PIMC, but not the requisite
-# helper functions that they call - obviously not meant to be called on its own
+# Contains all the code that actually performs the PIMC, but not all of the 
+# requisite helper functions that they call - obviously not meant to be called 
+# on its own.
 
-#using Printf
-
-# This should probably go in the "action.jl" file
-function InitializeDeterminants(Param::Params, Path::Paths)
-    for tSlice = 1:Param.nTsl
-        for ptcl = 1:Param.nPar
-            Path.determinants[tSlice,ptcl] = Determinant(Param, Path, tSlice)
-        end
-    end
-end
-
-function CenterOfMassMove!(Param::Params, Path::Paths, ptcl::Int64, rng::MersenneTwister)
+@inbounds function CenterOfMassMove!(Manent::Function, Param::Params, 
+                            Path::Paths, ptcl::Int64, rng::MersenneTwister)
     # Attempts a CoM update, displacing the entire particle worldline
     delta = Param.delta
     shift = Shift(rng, delta) 
@@ -32,19 +23,31 @@ function CenterOfMassMove!(Param::Params, Path::Paths, ptcl::Int64, rng::Mersenn
     #oldPotentials = copy(Path.potentials)
     for tSlice = 1:Param.nTsl    # @turbo
         for ptcl = 1:Param.nPar
-            @inbounds oldPotentials[tSlice,ptcl] = Path.potentials[tSlice,ptcl]   #@inbounds
+            oldPotentials[tSlice,ptcl] = Path.potentials[tSlice,ptcl]   #@inbounds
         end
     end
 
+####### TODO: THIS SECTION NEEDS TO BE REWORKED ###############################
+# Boltzmannons don't interact with other particles, so this section would be
+# correct for them as-is, but bosons and fermions definitely do. Thus, even for
+# a single particle, the values of "Path.determinant" (which actually plays
+# double duty for all three cases) need to be recomputed for two of the three
+# cases. This section should reflect that.
+###############################################################################
     if Param.nPar == 1
-        # For a single particle, the determinants don't need updating - translational symmetry for line shift
+        # For a single particle, the determinants don't need updating - only 
+        # the relative distance between beads is important, and this shifts the 
+        # whole line while keeping the interbead distance the same.
     else
-        # For >1D, definitely need to recompute determinants
         # TODO: IMPLEMENT DETERMINANT RECOMPUTATION (only for required determinants, of course)
+        # Since, for multiple particles, only a single line is shifted, the
+        # relative distances between particles and their beads is changed, which
+        # means the whole thing needs to be recomputed. Ouch.
+        UpdateManents(Manent, Param, Path)
     end
 
     for tSlice = 1:Param.nTsl   # @turbo
-        @inbounds Path.beads[tSlice,ptcl] = Path.beads[tSlice,ptcl] + shift   # @inbounds
+        Path.beads[tSlice,ptcl] = Path.beads[tSlice,ptcl] + shift   # @inbounds
         UpdatePotential(Path, Param.nTsl, Param.nPar, Param.lam)
     end
 
@@ -58,21 +61,23 @@ function CenterOfMassMove!(Param::Params, Path::Paths, ptcl::Int64, rng::Mersenn
         Path.numAcceptCOM = Path.numAcceptCOM + 1
     else
         for tSlice = 1:Param.nTsl # @turbo
-            @inbounds Path.beads[tSlice,ptcl] = Path.beads[tSlice,ptcl] - shift   # @inbounds
+            Path.beads[tSlice,ptcl] = Path.beads[tSlice,ptcl] - shift   # @inbounds
 
             for ptcl = 1:Param.nPar
-                @inbounds Path.potentials[tSlice,ptcl] = oldPotentials[tSlice,ptcl]   # Restore old potentials  # @inbounds
+                Path.potentials[tSlice,ptcl] = oldPotentials[tSlice,ptcl]   # Restore old potentials  # @inbounds
             end
         end
     end
+###############################################################################
 end
 
-function StagingMove!(Param::Params, Path::Paths, ptcl::Int64, rng::MersenneTwister)
+@inbounds function StagingMove!(Manent::Function, Param::Params, Path::Paths, 
+                                ptcl::Int64, rng::MersenneTwister)
     #=
     Attempts a staging move, which exactly samples the free-particle propagator
     between two positions.
 
-    See: http://link.aps.org/doi/10.1103/PhysRevB.31.4234
+    See: http://link.aps.org/doi/10.1103/PhysRevB.31.4234 
 
     Note: does not work for periodic boundary conditions.
     =#
@@ -97,20 +102,29 @@ function StagingMove!(Param::Params, Path::Paths, ptcl::Int64, rng::MersenneTwis
         oldBeads[a]         = Path.beads[tSlice,ptcl]
         oldPotentials[a]    = Path.potentials[tSlice,ptcl]
         oldDeterminant[a]   = Path.determinants[tSlice,ptcl]
-        oldAction           = oldAction + tauO2 * ComputeAction(Param, Path, tSlice)
+        oldAction           += tauO2 * ComputeAction(Param, Path, tSlice)
     end
 
     for a = 1:m-1
-        tSlice                      = ModTslice((alpha_start + a), Param.nTsl)
-        temp                        = ModTslice((tSlice - 1), Param.nTsl)
+        tSlice                  = ModTslice((alpha_start + a), Param.nTsl)
+        temp                    = ModTslice((tSlice - 1), Param.nTsl)
         temp == 0 ? tSlicem1 = Param.nTsl : tSlicem1 = temp
-        tau1                        = (m - a) * tau
-        avex                = (tau1 * Path.beads[tSlicem1,ptcl] + 
+        tau1                    = (m - a) * tau
+        avex                    = (tau1 * Path.beads[tSlicem1,ptcl] + 
                                 tau * Path.beads[alpha_end,ptcl]) / (tau + tau1)
-        sigma2                      = 2.0 * Param.lam / (1.0 / tau + 1.0 / tau1)
-        Path.beads[tSlice,ptcl]     = avex + sqrt(sigma2) * randn(rng)
+        sigma2                  = 2.0 * Param.lam / (1.0 / tau + 1.0 / tau1)
+        Path.beads[tSlice,ptcl] = avex + sqrt(sigma2) * randn(rng)
         UpdatePotential(Path, Param.nTsl, Param.nPar, Param.lam)
-        UpdateDeterminant(Param, Path, tSlice, ptcl)
+        
+        #UpdateDeterminant(Param, Path, tSlice, ptcl)
+        if (Manent == Determinant)
+            Path.determinants[tSlice, ptcl] = Determinant(Param, Path, tSlice)
+        elseif (Manent == Permanent)
+            Path.determinants[tSlice, ptcl] = Permanent(Param, Path, tSlice)
+        else
+        end
+
+        UpdateManent(Manent, Param, Path, tSlice, ptcl)
         newAction                   = newAction + tauO2 * ComputeAction(Param, Path,tSlice)
             # See Ceperley about this (Potential) Action, how it relates to the
             # Primitive approximation, extra factors of tau in the "accuracy", 
@@ -130,6 +144,7 @@ function StagingMove!(Param::Params, Path::Paths, ptcl::Int64, rng::MersenneTwis
     end
 end
 
+#=
 function Bin(Param::Params, Path::Paths)
     binLoc = -1
 
@@ -147,16 +162,17 @@ function Bin(Param::Params, Path::Paths)
     
     return binArray
 end
+=#
 
-function SpatialBinCver(Param::Params, Path::Paths, binArrCount::Vector{Float64})
+@inbounds function SpatialBinCver(Param::Params, Path::Paths, binArrCount::Vector{Float64})
     binLoc = -1
     for i = 1:Param.numSpatialBins
-        @inbounds binArrCount[i] = 0
+        binArrCount[i] = 0
     end
 
     for tSlice = 1:Param.nTsl
         # DON'T FORGET THE "JULIA OFFSET" - +1 BECAUSE JULIA
-        @inbounds binLoc = 1 + trunc(Int, (Path.beads[tSlice,1] - Param.x_min)/Param.spatialBinWidth)
+        binLoc = 1 + trunc(Int, (Path.beads[tSlice,1] - Param.x_min)/Param.spatialBinWidth)
         if binLoc < 1
             binLoc = 1
         elseif binLoc > Param.numSpatialBins
@@ -166,19 +182,21 @@ function SpatialBinCver(Param::Params, Path::Paths, binArrCount::Vector{Float64}
     end
 end
 
-function UpdateMC(Param::Params, Path::Paths, rng::MersenneTwister)
+function UpdateMC(Manent::Function, Param::Params, Path::Paths, rng::MersenneTwister)
     for time = 1:Param.nTsl        
         for ptcl = 1:rand(rng, 1:Param.nPar)
-            CenterOfMassMove!(Param, Path, ptcl, rng)
+            CenterOfMassMove!(Manent, Param, Path, ptcl, rng)
         end
         
         for ptcl = 1:rand(rng, 1:Param.nPar)
-            StagingMove!(Param, Path, ptcl, rng)
+            StagingMove!(Manent, Param, Path, ptcl, rng)
         end
     end
 end
 
 function PIMC(Param::Params, Path::Paths, numSteps::Int64, set::Dict{String, Any}, rng::MersenneTwister)
+### Set up the required variables, arrays, and determine what kind of particles
+# are being simulated. Also, write out some of the various log files.
     x1_ave      = 0.0::Float64
     x2_ave      = 0.0::Float64
     equilSkip   = Param.numEquilibSteps::Int64
@@ -199,10 +217,6 @@ function PIMC(Param::Params, Path::Paths, numSteps::Int64, set::Dict{String, Any
                                     # it doesn't act like it does in Python. 
                                     # In Julia, it includes the endpoint.
                                     # Thus, remove that last point.
-    #if length(distrbtnBins) != width + 1
-    #    println("Failure! distributionArray = $width while bin = $(length(distrbtnBins))")
-    #    exit()
-    #end
 
     println("\nX_max = $(Param.x_max)\nX_Min = $(Param.x_min)")
     println("numSpatialBins = $width")
@@ -223,9 +237,43 @@ function PIMC(Param::Params, Path::Paths, numSteps::Int64, set::Dict{String, Any
             print(file, "\n")
         end
     end
+###############################################################################
 
-    # Initialize the determinants and potentials arrays
-    InitializeDeterminants(Param, Path)
+### Initialize the determinants and potentials arrays #########################
+# TODO: ERROR CHECKING FOR MAKING SURE THAT ONLY ONE OF BOSONS, FERMIONS, OR 
+# BOLTZMANNONS ARE BEING SIMULATED
+    function Manent() end
+    if ( !set["bosons"] )
+        if ( !set["boltzmannons"] )
+            Manent = Determinant
+            UpdateManents(Manent, Param, Path)
+            #InitializeDeterminants(Param, Path)
+        elseif ( set["boltzmannons"] )
+            Manent = Boltzmannant
+            UpdateManents(Manent, Param, Path)
+            #InitializeBoltzmannant(Param, Path)
+        else
+            # Abort -- too many options
+            print("Please choose either fermions, bosons, or boltzmannons to ")
+            print("simulate - you cannot set both the boson and boltzmannon ")
+            println("flags.")
+            exit()
+        end
+    elseif ( set["bosons"] )
+        if ( !set["boltzmannons"] )
+            Manent = Permanent
+            UpdateManents(Manent, Param, Path)
+        else set["boltzmannons"]
+            print("Please choose either fermions, bosons, or boltzmannons to ")
+            print("simulate - you cannot set both the boson and boltzmannon ")
+            println("flags.")
+            exit()
+        end
+    else
+        Manent = Boltzmannent
+        InitializeBoltzmannant(Param, Path) # This will just set Path.det~~ = 1
+    end
+
     InstantiatePotentials(Param, Path)
     
     # MC iterations
@@ -236,14 +284,14 @@ function PIMC(Param::Params, Path::Paths, numSteps::Int64, set::Dict{String, Any
     # Warmup
     println("Equilibriating the simulation...")
     for steps = ProgressBar(1:equilSkip)
-        UpdateMC(Param, Path, rng)
+        UpdateMC(Manent, Param, Path, rng)
     end
 
     println("Starting the data collection now...")
     steps = equilSkip + 1   # Because Julia doesn't "reuse" variables like C/C++ would
     while sampleCount < Param.numSamples
         # The toy code attempts both updates - should I do that here as well?
-        UpdateMC(Param, Path, rng)
+        UpdateMC(Manent, Param, Path, rng)
 
         if (steps % Param.observableSkip == 0)
             ### Start accumulating expectation values, etc.
@@ -254,8 +302,8 @@ function PIMC(Param::Params, Path::Paths, numSteps::Int64, set::Dict{String, Any
                 distributionArray = distributionArray + distArrayCount
             end
 
-            energy1     = energy1 + Energy(Param, Path)
-            energy2     = energy2 + energy1*energy1
+            energy1     += Energy(Param, Path)
+            energy2     += energy1*energy1
             ke          = ke + Path.KE
             pe          = pe + Path.PE
 
@@ -268,7 +316,7 @@ function PIMC(Param::Params, Path::Paths, numSteps::Int64, set::Dict{String, Any
 
             if (binCount % binSize == 0)
                 ### Write the binned data to file
-                sampleCount = sampleCount + 1
+                sampleCount += 1
                 if (sampleCount % 256 == 0)
                     println("Writing sample $sampleCount / $(Param.numSamples)")
                 end

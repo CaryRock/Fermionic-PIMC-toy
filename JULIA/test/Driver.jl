@@ -88,7 +88,7 @@ function parse_commandline()
             help = "Sets the desired number of MC sweeps to bin over"
             arg_type = Int64
             default = 50
-        "--spatialBinWidth", "-b"
+        "--spatialBinWidth", "-w"
             help = "Sets the desired width of bins"
             arg_type = Float64
             default = 0.05
@@ -104,9 +104,13 @@ function parse_commandline()
             help = "Sets the maximum value for X - can be negative"
             arg_type = Float64
             default = 5.0
-
+        "--bosons", "-b"
+            help = "Informs the simulation to use bosons instead of fermions."
+            action = :store_true
+        "--boltzmannons", "-z"
+            help = "Informs the simulation to use \"boltzmannons\" instead of fermions."
+            action = :store_true
 ### Optional Output Flags #####################################################
-# These currently don't do anything, but may be reimplemented later
         "--rawX1"
             help = "Reporti raw <x> - WARNING: GENERATES MUCH DATA"
             action = :store_true
@@ -239,12 +243,12 @@ include("expectations.jl")  # Contains the methods that compute <x>, <x^2>, etc.
 #include("pyBinData.jl")     # Contains only the Python binning implementation
 
 function GetCommandLineInvocation(ARGS)
-   invocation = "julia $PROGRAM_FILE "
-   for i = 1:length(ARGS)
+    invocation = "julia $PROGRAM_FILE "
+    for i = 1:length(ARGS)
         invocation *= ARGS[i] * " "
-   end
-   # There's technically that extra space at the end, but that's also in the production code's output, so...
-   return invocation
+    end
+    # There's technically that extra space at the end, but that's also in the production code's output, so...
+    return invocation
 end
 
 # Optimize - https://docs.julialang.org/en/v1/manual/performance-tips

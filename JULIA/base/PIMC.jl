@@ -35,11 +35,15 @@
 # cases. This section should reflect that.
 ###############################################################################
     if Param.nPar == 1
-        # For a single particle, the determinants don't need updating - translational symmetry for line shift
+        # For a single particle, the determinants don't need updating - only 
+        # the relative distance between beads is defined, and this shifts the 
+        # whole line. 
     else
-        # For >1D, definitely need to recompute determinants
         # TODO: IMPLEMENT DETERMINANT RECOMPUTATION (only for required determinants, of course)
-        UpdateManent()
+        # Since, for multiple particles, only a single line is shifted, the
+        # relative distances between particles and their beads is changed, which
+        # means the whole thing needs to be recomputed. Ouch.
+        UpdateManent(Manent, Param, Path, tSlice, ptcl)
     end
 
     for tSlice = 1:Param.nTsl   # @turbo
