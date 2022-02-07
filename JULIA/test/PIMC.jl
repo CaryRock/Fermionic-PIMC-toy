@@ -179,7 +179,7 @@ function UpdateMC(Manent::Function, Param::Params, Path::Paths, rng::MersenneTwi
     end
 end
 
-function PIMC(Param::Params, Path::Paths, numSteps::Int64, set::Dict{String, Any}, rng::MersenneTwister)
+@inbounds function PIMC(Param::Params, Path::Paths, numSteps::Int64, set::Dict{String, Any}, rng::MersenneTwister)
 ### Set up the required variables, arrays, and determine what kind of particles
 # are being simulated. Also, write out some of the various log files.
     x1_ave      = 0.0::Float64
@@ -225,40 +225,9 @@ function PIMC(Param::Params, Path::Paths, numSteps::Int64, set::Dict{String, Any
 ###############################################################################
 
 ### Initialize the determinants and potentials arrays #########################
-# TODO: ERROR CHECKING FOR MAKING SURE THAT ONLY ONE OF BOSONS, FERMIONS, OR 
-# BOLTZMANNONS ARE BEING SIMULATED
     function Manent() end
-    if ( !set["bosons"] )
-        if ( !set["boltzmannons"] )
-            Manent = Determinant
-            UpdateManents(Manent, Param, Path)
-            #InitializeDeterminants(Param, Path)
-        elseif ( set["boltzmannons"] )
-            Manent = Boltzmannant
-            UpdateManents(Manent, Param, Path)
-            #InitializeBoltzmannant(Param, Path)
-        else
-            # Abort -- too many options
-            print("Please choose either fermions, bosons, or boltzmannons to ")
-            print("simulate - you cannot set both the boson and boltzmannon ")
-            println("flags.")
-            exit()
-        end
-    elseif ( set["bosons"] )
-        if ( !set["boltzmannons"] )
-            Manent = Permanent
-            UpdateManents(Manent, Param, Path)
-        else set["boltzmannons"]
-            print("Please choose either fermions, bosons, or boltzmannons to ")
-            print("simulate - you cannot set both the boson and boltzmannon ")
-            println("flags.")
-            exit()
-        end
-    else
-        Manent = Boltzmannent
-        InitializeBoltzmannant(Param, Path) # This will just set Path.det~~ = 1
-    end
-
+    Manent = WhichManent(Manent, Determinant, Permanent, Boltzmannant, set["bosons"], set["boltzmannons"])
+    UpdateManents(Manent, Param, Path)
     InstantiatePotentials(Param, Path)
     
     # MC iterations
@@ -280,11 +249,11 @@ function PIMC(Param::Params, Path::Paths, numSteps::Int64, set::Dict{String, Any
 
         if (steps % Param.observableSkip == 0)
             ### Start accumulating expectation values, etc.
-            binCount = binCount + 1
+            binCount += 1
 
             if (set["spatial-distribution"])
                 SpatialBinCver(Param, Path, distArrayCount)
-                distributionArray = distributionArray + distArrayCount
+                distributionArray += distArrayCount
             end
 
             energy1     += Energy(Param, Path)
@@ -294,8 +263,8 @@ function PIMC(Param::Params, Path::Paths, numSteps::Int64, set::Dict{String, Any
 
             for i = 1:Param.nTsl
                 for j = 1:Param.nPar
-                    @inbounds x1_ave = x1_ave + Path.beads[i,j]
-                    @inbounds x2_ave = x2_ave + Path.beads[i,j] * Path.beads[i,j]
+                    x1_ave += Path.beads[i,j]
+                    x2_ave += Path.beads[i,j] * Path.beads[i,j]
                 end
             end
 

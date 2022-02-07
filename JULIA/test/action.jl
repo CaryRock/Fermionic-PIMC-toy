@@ -1,15 +1,24 @@
 # Contains the functions that interact with the action of the particle(s)
-function WhichManent(Manent::Function, Determinant::Function, Permanant::Function, boson::Bool, boltzmannon::Bool)
-    if boson
+function WhichManent(Manent::Function, Determinant::Function, 
+            Permanant::Function, Boltzmannant::Function, bosons::Bool, boltzmannons::Bool)
+    if bosons && !boltzmannons
         return Permanant
+    elseif boltzmannons && ! bosons
+        return Boltzmannant
+    elseif bosons && boltzmannons
+        println("Please choose one of \'--bosons\' or \'--boltzmannons\', not both.")
+        exit()
     else
         return Determinant
     end
 end
 
 # TODO: SEE IF THIS FUNCTION CAN BE COMPILED/WRAPPED IN C++ CODE USING BOOST
+# This function is possibly sometimes negative -> rho_i is not pos. def. =>
+# => e^ln(this) is not safe
 @inbounds function Determinant(Param::Params, Path::Paths,tSlice::Int64)
-    # Just short-circuit the whole thing for Boltzmannons
+    # Note: e^i*pi = -1 -> ln(e^i*pi) = i*pi = ln(-1) => overall phase flip
+
     Neg1o2tau = -1.0/(2.0 * Param.tau)
     tModPlus = ModTslice(tSlice + 1, Param.nTsl)
 
@@ -19,8 +28,8 @@ end
     
     elseif (Param.nPar == 2)    # Simple 2x2 matrix, return simple value
         return (
-    exp(Neg1o2tau * ((Path.beads[tSlice, 1] - Path.beads[tModPlus, 1])^2 + (Path.beads[tSlice, 2] - Path.beads[tModPlus, 2] )^2)) -
-    exp(Neg1o2tau * ((Path.beads[tSlice, 2] - Path.beads[tModPlus, 1])^2 + (Path.beads[tModPlus, 1] - Path.beads[tSlice, 2] )^2))
+    (Neg1o2tau * ((Path.beads[tSlice, 1] - Path.beads[tModPlus, 1])^2 + (Path.beads[tSlice, 2] - Path.beads[tModPlus, 2] )^2)) -
+    (Neg1o2tau * ((Path.beads[tSlice, 2] - Path.beads[tModPlus, 1])^2 + (Path.beads[tModPlus, 1] - Path.beads[tSlice, 2] )^2))
                )
     else
         println("This part isn't done yet!")
@@ -29,6 +38,7 @@ end
 end
 
 # TODO: SEE IF THIS FUNCTION CAN BE COMPILED/WRAPPED IN C++ CODE USING BOOST
+# This function is never negative -> rho_i is pos. def. => safe for e^ln(this)
 @inbounds function Permanent(Param::Params, Path::Paths, tSlice::Int64)
     Neg1o2tau = -1.0/(2.0 * Param.tau)
     tModPlus = ModTslice(tSlice + 1, Param.nTsl)
@@ -36,10 +46,12 @@ end
     if (Param.nPar == 1)
         return exp(Neg1o2tau * 
                    (Path.beads[tSlice,1] - Path.beads[tModPlus,1])^2 )
-    elseif (Param.nPar == 2)
+    elseif (Param.nPar == 2)    # I don't know, man. This has code smell all over this
         return ( 
-    exp(Neg1o2tau * ((Path.beads[tSlice, 1] - Path.beads[tModPlus, 1])^2 + (Path.beads[tSlice, 2] - Path.beads[tModPlus, 2] )^2)) +
-    exp(Neg1o2tau * ((Path.beads[tSlice, 2] - Path.beads[tModPlus, 1])^2 + (Path.beads[tModPlus, 1] - Path.beads[tSlice, 2] )^2))
+                log(
+                    (Neg1o2tau * ((Path.beads[tSlice, 1] - Path.beads[tModPlus, 1])^2 + (Path.beads[tSlice, 2] - Path.beads[tModPlus, 2] )^2)) + 
+                    (Neg1o2tau * ((Path.beads[tSlice, 2] - Path.beads[tModPlus, 1])^2 + (Path.beads[tModPlus, 1] - Path.beads[tSlice, 2] )^2))
+                   )
                )
     else
         println("This part isn't done yet!")

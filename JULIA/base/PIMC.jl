@@ -9,41 +9,30 @@
     shift = Shift(rng, delta) 
     oldAction = 0.0
     newAction = 0.0
-    #tauO2 = Param.tau/2
+
 
     # Store the postiions on the worldline
-    #for tSlice = 1:Param.nTsl
-    #    @inbounds oldAction = oldAction + ComputeAction(Param, Path, tSlice)
-    #end
-    AltComputeAction(Param, Path, oldAction)
-    oldAction *= Param.tau/2 #tauO2
+    for tSlice = 1:Param.nTsl
+        oldAction += ComputeAction(Param, Path, tSlice)
+    end
+    oldAction *= Param.tau/2.0 #tauO2
 
     # Save old potentials to avoid recalculating them
     oldPotentials = zeros(Float64, Param.nTsl, Param.nPar)
-    #oldPotentials = copy(Path.potentials)
     for tSlice = 1:Param.nTsl    # @turbo
         for ptcl = 1:Param.nPar
             oldPotentials[tSlice,ptcl] = Path.potentials[tSlice,ptcl]   #@inbounds
         end
     end
 
-####### TODO: THIS SECTION NEEDS TO BE REWORKED ###############################
-# Boltzmannons don't interact with other particles, so this section would be
-# correct for them as-is, but bosons and fermions definitely do. Thus, even for
-# a single particle, the values of "Path.determinant" (which actually plays
-# double duty for all three cases) need to be recomputed for two of the three
-# cases. This section should reflect that.
-###############################################################################
     if Param.nPar == 1
-        # For a single particle, the determinants don't need updating - only 
-        # the relative distance between beads is defined, and this shifts the 
-        # whole line. 
+        # For a single particle, Path.detemrinants doesn't need updating
     else
-        # TODO: IMPLEMENT DETERMINANT RECOMPUTATION (only for required determinants, of course)
-        # Since, for multiple particles, only a single line is shifted, the
-        # relative distances between particles and their beads is changed, which
-        # means the whole thing needs to be recomputed. Ouch.
-        UpdateManent(Manent, Param, Path, tSlice, ptcl)
+        # 
+        #
+        for tSlice = 1:Param.nTsl
+            UpdateManent(Manent, Param, Path, tSlice, ptcl)
+        end
     end
 
     for tSlice = 1:Param.nTsl   # @turbo
@@ -51,10 +40,9 @@
         UpdatePotential(Path, Param.nTsl, Param.nPar, Param.lam)
     end
 
-    #for tSlice = 1:Param.nTsl
-    #    @inbounds newAction = newAction + ComputeAction(Param, Path,tSlice)
-    #end
-    AltComputeAction(Param, Path, newAction)
+    for tSlice = 1:Param.nTsl
+        @inbounds newAction = newAction + ComputeAction(Param, Path,tSlice)
+    end
     newAction *= Param.tau/2 #tauO2
 
     if rand(rng) < exp(-(newAction - oldAction))    # TODO: FIX THIS SO THAT IT IS ONLY DONE WHEN IT IS SUPPOSED TO
@@ -68,7 +56,6 @@
             end
         end
     end
-###############################################################################
 end
 
 @inbounds function StagingMove!(Manent::Function, Param::Params, Path::Paths, 
@@ -115,9 +102,8 @@ end
         sigma2                  = 2.0 * Param.lam / (1.0 / tau + 1.0 / tau1)
         Path.beads[tSlice,ptcl] = avex + sqrt(sigma2) * randn(rng)
         UpdatePotential(Path, Param.nTsl, Param.nPar, Param.lam)
-        #UpdateDeterminant(Param, Path, tSlice, ptcl)
         UpdateManent(Manent, Param, Path, tSlice, ptcl)
-        newAction                   = newAction + tauO2 * ComputeAction(Param, Path,tSlice)
+        newAction                   += tauO2 * ComputeAction(Param, Path,tSlice)
             # See Ceperley about this (Potential) Action, how it relates to the
             # Primitive approximation, extra factors of tau in the "accuracy", 
             # etc. In the first few sections.
@@ -177,7 +163,7 @@ end
 function UpdateMC(Manent::Function, Param::Params, Path::Paths, rng::MersenneTwister)
     for time = 1:Param.nTsl        
         for ptcl = 1:rand(rng, 1:Param.nPar)
-            CenterOfMassMove!(Param, Path, ptcl, rng)
+            CenterOfMassMove!(Manent, Param, Path, ptcl, rng)
         end
         
         for ptcl = 1:rand(rng, 1:Param.nPar)
@@ -186,7 +172,7 @@ function UpdateMC(Manent::Function, Param::Params, Path::Paths, rng::MersenneTwi
     end
 end
 
-function PIMC(Param::Params, Path::Paths, numSteps::Int64, set::Dict{String, Any}, rng::MersenneTwister)
+@inbounds function PIMC(Param::Params, Path::Paths, numSteps::Int64, set::Dict{String, Any}, rng::MersenneTwister)
 ### Set up the required variables, arrays, and determine what kind of particles
 # are being simulated. Also, write out some of the various log files.
     x1_ave      = 0.0::Float64
@@ -205,10 +191,6 @@ function PIMC(Param::Params, Path::Paths, numSteps::Int64, set::Dict{String, Any
     stepSize            = (Param.x_max - Param.x_min)/(width - 1)::Int64
         # These are the x-axis spatial bins into which the distribution will be binned
     distrbtnBins        = collect(range(Param.x_min, Param.x_max, step=stepSize))
-    #deleteat!(distrbtnBins, length(distrbtnBins))   # Stupid range function - 
-                                    # it doesn't act like it does in Python. 
-                                    # In Julia, it includes the endpoint.
-                                    # Thus, remove that last point.
 
     println("\nX_max = $(Param.x_max)\nX_Min = $(Param.x_min)")
     println("numSpatialBins = $width")
@@ -229,41 +211,11 @@ function PIMC(Param::Params, Path::Paths, numSteps::Int64, set::Dict{String, Any
             print(file, "\n")
         end
     end
-###############################################################################
 
 ### Initialize the determinants and potentials arrays #########################
-# TODO: ERROR CHECKING FOR MAKING SURE THAT ONLY ONE OF BOSONS, FERMIONS, OR 
-# BOLTZMANNONS ARE BEING SIMULATED
     function Manent() end
-    if ( !set["boson"] )
-        if ( !set["boltzmannon"] )
-            Manent = Determinant
-            InitializeDeterminants(Param, Path)
-        elseif ( set["boltzmannon"] )
-            Manent = Boltzmannant
-            InitializeBoltzmannant(Param, Path)
-        else
-            # Abort -- too many options
-            print("Please choose either fermions, bosons, or boltzmannons to ")
-            print("simulate - you cannot set both the boson and boltzmannon ")
-            println("flags.")
-            exit()
-        end
-    elseif ( set["boson"] )
-        if ( !set["boltzmannon"] )
-            Manent = Permanent
-            InitializePermanents(Param, Path)
-        else set["boltzmannon"]
-            print("Please choose either fermions, bosons, or boltzmannons to ")
-            print("simulate - you cannot set both the boson and boltzmannon ")
-            println("flags.")
-            exit()
-        end
-    else
-        Manent = Boltzmannent
-        InitializeBoltzmannant(Param, Path) # This will just set Path.det~~ = 1
-    end
-
+    Manent = WhichManent(Manent, Determinant, Permanent, Boltzmannant, set["bosons"], set["boltzmannons"])
+    UpdateManents(Manent, Param, Path)
     InstantiatePotentials(Param, Path)
     
     # MC iterations
@@ -297,10 +249,20 @@ function PIMC(Param::Params, Path::Paths, numSteps::Int64, set::Dict{String, Any
             ke          = ke + Path.KE
             pe          = pe + Path.PE
 
+            # NOTE: THIS IS ADDING TOGETHER BOTH PARTICLES AND FINDING THE 
+            # RESULTING VALUES. THIS IS JUST FINE FOR A SINGLE PARTICLE, BUT
+            # FAILES MISERABLY FOR MULTIPLE PARTICLES. LIKEWISE, THE ENERGY
+            # HAS TO BE ADJUSTED (it's not giving the expected ~2.16 for two 
+            # boltzmannons, but ~1.8 which is expected for 2 bosons). THE 
+            # EXPECTATION VALUES FOR THESE WILL HAVE TO BE SEPARATED.
+            #
+            # SEE HOW THE PRODUCTION CODE HANDLES MULTIPLE PARTICLES - DOES IT
+            # REPORT THEM ALL TOGETHER, DOES IT HANDLE THEM INDIVIDUALLY, THEN 
+            # ADD THOSE EXPECTATION VALUES TOGETHER, SOMETHING ELSE...?
             for i = 1:Param.nTsl
                 for j = 1:Param.nPar
-                    @inbounds x1_ave = x1_ave + Path.beads[i,j]
-                    @inbounds x2_ave = x2_ave + Path.beads[i,j] * Path.beads[i,j]
+                    x1_ave = x1_ave + Path.beads[i,j] / Param.nPar
+                    x2_ave = x2_ave + Path.beads[i,j] * Path.beads[i,j] / Param.nPar
                 end
             end
 
@@ -313,7 +275,7 @@ function PIMC(Param::Params, Path::Paths, numSteps::Int64, set::Dict{String, Any
                 
                 energy1 /= binSize
                 energy2 /= binSize
-                ke      /= binSize 
+                ke      /= binSize
                 pe      /= binSize
                 x1_ave  /= (binSize * Param.nTsl)
                 x2_ave  /= (binSize * Param.nTsl)

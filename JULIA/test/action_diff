@@ -1,0 +1,121 @@
+2,4c2,3
+< function WhichManent(Manent::Function, Determinant::Function, 
+<             Permanant::Function, Boltzmannant::Function, bosons::Bool, boltzmannons::Bool)
+<     if bosons && !boltzmannons
+---
+> function WhichManent(Manent::Function, Determinant::Function, Permanant::Function, boson::Bool, boltzmannon::Bool)
+>     if boson
+6,10d4
+<     elseif boltzmannons && ! bosons
+<         return Boltzmannant
+<     elseif bosons && boltzmannons
+<         println("Please choose one of \'--bosons\' or \'--boltzmannons\', not both.")
+<         exit()
+16,18d9
+< # TODO: SEE IF THIS FUNCTION CAN BE COMPILED/WRAPPED IN C++ CODE USING BOOST
+< # This function is possibly sometimes negative -> rho_i is not pos. def. =>
+< # => e^ln(this) is not safe
+20,22c11,13
+<     # Note: e^i*pi = -1 -> ln(e^i*pi) = i*pi = ln(-1) => overall phase flip
+< 
+<     Neg1o2tau = -1.0/(2.0 * Param.tau)
+---
+>     # Just short-circuit the whole thing for Boltzmannons
+>     return 1.0
+>     tau = Param.tau
+25,26c16,17
+<     if (Param.nPar == 1)    # Scalar value
+<         return exp( Neg1o2tau * 
+---
+>     if (Param.nPar == 1)
+>         return exp(-1/(2*tau) * 
+28,36d18
+<     
+<     elseif (Param.nPar == 2)    # Simple 2x2 matrix, return simple value
+<         return (
+<     (Neg1o2tau * ((Path.beads[tSlice, 1] - Path.beads[tModPlus, 1])^2 + (Path.beads[tSlice, 2] - Path.beads[tModPlus, 2] )^2)) -
+<     (Neg1o2tau * ((Path.beads[tSlice, 2] - Path.beads[tModPlus, 1])^2 + (Path.beads[tModPlus, 1] - Path.beads[tSlice, 2] )^2))
+<                )
+<     else
+<         println("This part isn't done yet!")
+<         exit()
+37a20,32
+> 
+>     for ptclRow = 1:Param.nTsl
+>         for ptclCol = 1:Param.nPar
+>             # Iterate over the beads - recall, Julia is Column-major
+>             if (CutOff(Path.beads[tSlice,ptclRow], Path.beads[tModPlus,ptclCol]))
+>                 Path.determinants[ptclRow,ptclCol] = 1.0
+>             else
+>                 Path.determinants[ptclRow,ptclCol] = exp(-1/(2*tau) * 
+>                     (Path.beads[tSlice,ptclRow] - Path.beads[tModPlus,ptclCol])^2)
+>             end
+>         end
+>     end
+>     return det(Path.determinants)
+40,41d34
+< # TODO: SEE IF THIS FUNCTION CAN BE COMPILED/WRAPPED IN C++ CODE USING BOOST
+< # This function is never negative -> rho_i is pos. def. => safe for e^ln(this)
+43c36
+<     Neg1o2tau = -1.0/(2.0 * Param.tau)
+---
+>     Neg1o2tau = -1/(2 * Param.tau)
+49c42
+<     elseif (Param.nPar == 2)    # I don't know, man. This has code smell all over this
+---
+>     elseif (Param.nPar == 2)
+51,54c44,45
+<                 log(
+<                     (Neg1o2tau * ((Path.beads[tSlice, 1] - Path.beads[tModPlus, 1])^2 + (Path.beads[tSlice, 2] - Path.beads[tModPlus, 2] )^2)) + 
+<                     (Neg1o2tau * ((Path.beads[tSlice, 2] - Path.beads[tModPlus, 1])^2 + (Path.beads[tModPlus, 1] - Path.beads[tSlice, 2] )^2))
+<                    )
+---
+>                 exp(Neg1o2tau * (Path.beads[tSlice, 1] + Path.beads[tModPlus, 2] )^2) + 
+>                 exp(Neg1o2tau * (Path.beads[tSlice, 2] + Path.beads[tModPlus, 1] )^2)
+62,66d52
+< @inline function Boltzmannant(Param::Params, Path::Paths, tSlice::Int64)
+<     return 1.0
+< end
+< 
+< #=
+68,69c54,55
+<     for ptcl = 1:Param.nPar
+<         for tSlice = 1:Param.nTsl
+---
+>     for tSlice = 1:Param.nTsl
+>         for ptcl = 1:Param.nPar
+77,87c63,65
+<     for ptcl = 1:Param.nPar
+<         for tSlice = 1:Param.nTsl
+<             Path.determinants[tSlice, ptcl] = Permanent(Param, Path, tSlice)
+<         end
+<     end
+< end
+< =#
+< @inbounds function UpdateManents(Manent::Function, Param::Params, Path::Paths)
+<     for ptcl = 1:Param.nPar
+<         for tSlice = 1:Param.nTsl
+<             Path.determinants[tSlice, ptcl] = Manent(Param, Path, tSlice)
+---
+>     for tSlice = 1:Param.nTsl
+>         for ptcl = 1:Param.nPar
+>             Path.determinants[tSlice, ptcl] = Permanent(Param, Path, tSlice) #TODO: Is this a todo? It's convenient, though
+135a114
+>     #action = 0.0
+144a124,126
+>                 #action += ( Path.potentials[tSlice, ptcl] + Path.potentials[tModPlus, ptcl] ) * 
+>                 #            Path.determinants[tSlice, ptcl]
+>                 #
+155a138,139
+> 
+>     #return action
+157a142
+> # TODO: FIGURE OUT HOW TO MAKE THIS FUNCTION WORK WITH ExtPotential() AND @turbo
+162,168d146
+< ### These functions are meant to update a all the determiinants as shifting
+< # a worldline leads to all the beads changing distance. Changed bead distance
+< # means new determinants.
+< 
+< 
+< ### These functions are meant to update single determinants as opposed to a 
+< # whole worldline of them. 

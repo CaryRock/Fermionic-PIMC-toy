@@ -1,7 +1,13 @@
 # Contains the functions that interact with the action of the particle(s)
-function WhichManent(Manent::Function, Determinant::Function, Permanant::Function, boson::Bool, boltzmannon::Bool)
-    if boson
+function WhichManent(Manent::Function, Determinant::Function, 
+        Permanant::Function, Boltzmannant::Function, bosons::Bool, boltzmannons::Bool)
+    if bosons && !boltzmannons
         return Permanant
+    elseif boltzmannons && !bosons
+        return Boltzmannant
+    elseif bosons && boltzmannons
+        println("Please choose one of \'--bosons\' or \'--boltzmannons\', not both.")
+        exit()
     else
         return Determinant
     end
@@ -50,6 +56,10 @@ end
     end
 end
 
+@inline function Boltzmannant(Param::Params, Path::Paths, tSlice::Int64)
+    return 1.0
+end
+#=
 @inbounds function InitializeDeterminants(Param::Params, Path::Paths)
     for tSlice = 1:Param.nTsl
         for ptcl = 1:Param.nPar
@@ -63,6 +73,14 @@ end
     for tSlice = 1:Param.nTsl
         for ptcl = 1:Param.nPar
             Path.determinants[tSlice, ptcl] = Permanent(Param, Path, tSlice) #TODO: Is this a todo? It's convenient, though
+        end
+    end
+end
+=#
+@inbounds function UpdateManents(Manent::Function, Param::Params, Path::Paths)
+    for ptcl = 1:Param.nPar
+        for tSlice = 1:Param.nTsl
+            Path.determinants[tSlice, ptcl] = Manent(Param, Path, tSlice)
         end
     end
 end
@@ -162,5 +180,5 @@ function UpdateManent(Manent::Function, Param::Params, Path::Paths, tSlice::Int6
     tModMinus = ModTslice(tSlice - 1, Param.nTsl)
 
     Path.determinants[tModMinus, ptcl] = Manent(Param, Path, tModMinus)
-    Path.determinants[tSlice, ptcl] = Manent(Param, Path, tModMinus)
+    Path.determinants[tSlice, ptcl] = Manent(Param, Path, tSlice)
 end

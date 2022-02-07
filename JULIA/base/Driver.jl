@@ -104,10 +104,10 @@ function parse_commandline()
             help = "Sets the maximum value for X - can be negative"
             arg_type = Float64
             default = 5.0
-        "--boson", "-b"
+        "--bosons", "-b"
             help = "Informs the simulation to use bosons instead of fermions."
             action = :store_true
-        "--boltzmannon", "-z"
+        "--boltzmannons", "-z"
             help = "Informs the simulation to use \"boltzmannons\" instead of fermions."
             action = :store_true
 ### Optional Output Flags #####################################################
