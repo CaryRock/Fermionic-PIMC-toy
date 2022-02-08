@@ -121,7 +121,7 @@ function ComputeAction(Param::Params, Path::Paths, tSlice::Int64)
             action += 0.0
         else
             action += ( Path.potentials[tSlice,ptcl] + Path.potentials[tModPlus,ptcl] ) * 
-                        Path.determinants[tSlice,ptcl]
+                        log(Path.determinants[tSlice,ptcl])
         end
     end
     return action

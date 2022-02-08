@@ -122,26 +122,6 @@ end
     end
 end
 
-#=
-function Bin(Param::Params, Path::Paths)
-    binLoc = -1
-
-    binArray = zeros(Float64, Param.numSpatialBins)
-    for tSlice = 1:Param.nTsl
-        # DON'T FORGET THE "JULIA OFFSET" - +1 BECAUSE JULIA
-        binLoc = 1 + trunc(Int, (Path.beads[tSlice,1] - Param.x_min)/Param.spatialBinWidth)
-        if binLoc < 1
-            binLoc = 1
-        elseif binLoc > Param.numSpatialBins
-            binLoc = Param.numSpatialBins
-        end
-        binArray[binLoc] = binArray[binLoc] + 1
-    end
-    
-    return binArray
-end
-=#
-
 @inbounds function SpatialBinCver(Param::Params, Path::Paths, binArrCount::Vector{Float64})
     binLoc = -1
     for i = 1:Param.numSpatialBins
@@ -259,13 +239,21 @@ end
             # SEE HOW THE PRODUCTION CODE HANDLES MULTIPLE PARTICLES - DOES IT
             # REPORT THEM ALL TOGETHER, DOES IT HANDLE THEM INDIVIDUALLY, THEN 
             # ADD THOSE EXPECTATION VALUES TOGETHER, SOMETHING ELSE...?
+            
+            # TODO: kludged - this only records the position of the first particle
+            for i = 1:Param.nTsl
+                x1_ave += Path.beads[i,1]
+                x2_ave += Path.beads[i,1] * Path.beads[i,1]
+            end
+
+            #=
             for i = 1:Param.nTsl
                 for j = 1:Param.nPar
                     x1_ave = x1_ave + Path.beads[i,j] / Param.nPar
                     x2_ave = x2_ave + Path.beads[i,j] * Path.beads[i,j] / Param.nPar
                 end
             end
-
+            =#
             if (binCount % binSize == 0)
                 ### Write the binned data to file
                 sampleCount = sampleCount + 1
