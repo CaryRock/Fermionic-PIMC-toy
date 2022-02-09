@@ -6,11 +6,11 @@ using Dates
 using Random
 using ArgParse
 using Printf
-using LoopVectorization
+#using LoopVectorization
 using ProgressBars  # Entirely vain - just gives the pretty progress bar
 using UUIDs         # I sort-of despise this language. I really kind of do.
 
-using .Threads
+#using .Threads
 
 using TimerOutputs  # Optimization profiling
 

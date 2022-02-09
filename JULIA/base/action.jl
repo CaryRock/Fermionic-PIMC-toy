@@ -57,7 +57,7 @@ end
 end
 
 @inline function Boltzmannant(Param::Params, Path::Paths, tSlice::Int64)
-    return 1.0
+    return MathConstants.e
 end
 #=
 @inbounds function InitializeDeterminants(Param::Params, Path::Paths)
