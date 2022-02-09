@@ -14,7 +14,7 @@
         for ptcl = 1:Param.nPar
             delR = beads[tModPlus,ptcl] - beads[tSlice,ptcl]
             
-            tot = tot - norm * delR * delR
+            tot -= norm * delR * delR
         end
     end
     energy = 0.5 * Param.nPar / Param.tau + tot/Param.nTsl
@@ -31,7 +31,7 @@ end
             pe += potentials[tSlice, ptcl] + potentials[tModPlus,ptcl]
         end
     end
-    return pe / (2*Param.nTsl)
+    return pe / (2.0 * Param.nTsl)
 end
 
 function Energy(Param::Params, Path::Paths)

@@ -145,7 +145,7 @@ end
 end
 
 # Flags whether or not to truncate the calculation
-@inline function CutOff(beadA::Float64, beadB::Float64, cutoff::Float64=10^-12)
+@inline function CutOff(beadA::Float64, beadB::Float64, cutoff::Float64=10^-4)
     return ( abs(beadA - beadB) < cutoff )
 end
 

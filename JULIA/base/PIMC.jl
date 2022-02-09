@@ -19,7 +19,7 @@
 
     # Save old potentials to avoid recalculating them
     oldPotentials = zeros(Float64, Param.nTsl, Param.nPar)
-    for tSlice = 1:Param.nTsl    # @turbo
+    for tSlice = 1:Param.nTsl
         for ptcl = 1:Param.nPar
             oldPotentials[tSlice,ptcl] = Path.potentials[tSlice,ptcl]   #@inbounds
         end
@@ -28,25 +28,25 @@
     if Param.nPar == 1
         # For a single particle, Path.detemrinants doesn't need updating
     else
-        # 
-        #
+        # For multiple particles, Path.determinants does need to be updated. The
+        # shifts now also affect interbead, interline spacing
         for tSlice = 1:Param.nTsl
             UpdateManent(Manent, Param, Path, tSlice, ptcl)
         end
     end
 
     for tSlice = 1:Param.nTsl   # @turbo
-        Path.beads[tSlice,ptcl] = Path.beads[tSlice,ptcl] + shift   # @inbounds
-        UpdatePotential(Path, Param.nTsl, Param.nPar, Param.lam)
+        Path.beads[tSlice,ptcl] += shift   # @inbounds
+        UpdatePotential(Path, tSlice, ptcl, Param.lam)
     end
 
     for tSlice = 1:Param.nTsl
-        @inbounds newAction = newAction + ComputeAction(Param, Path,tSlice)
+        newAction += ComputeAction(Param, Path,tSlice)
     end
-    newAction *= Param.tau/2 #tauO2
+    newAction *= Param.tau/2.0 #tauO2
 
     if rand(rng) < exp(-(newAction - oldAction))    # TODO: FIX THIS SO THAT IT IS ONLY DONE WHEN IT IS SUPPOSED TO
-        Path.numAcceptCOM = Path.numAcceptCOM + 1
+        Path.numAcceptCOM += 1
     else
         for tSlice = 1:Param.nTsl # @turbo
             Path.beads[tSlice,ptcl] = Path.beads[tSlice,ptcl] - shift   # @inbounds
@@ -101,8 +101,11 @@ end
                                 tau * Path.beads[alpha_end,ptcl]) / (tau + tau1)
         sigma2                  = 2.0 * Param.lam / (1.0 / tau + 1.0 / tau1)
         Path.beads[tSlice,ptcl] = avex + sqrt(sigma2) * randn(rng)
-        UpdatePotential(Path, Param.nTsl, Param.nPar, Param.lam)
-        UpdateManent(Manent, Param, Path, tSlice, ptcl)
+        UpdatePotential(Path, tSlice, ptcl, Param.lam)
+        if Param.nPar == 1
+        else
+            UpdateManent(Manent, Param, Path, tSlice, ptcl)
+        end
         newAction                   += tauO2 * ComputeAction(Param, Path,tSlice)
             # See Ceperley about this (Potential) Action, how it relates to the
             # Primitive approximation, extra factors of tau in the "accuracy", 
@@ -111,7 +114,7 @@ end
     
     # Perform the Metropolis step, if we reject, revert the worldline
     if rand(rng) < exp(-(newAction - oldAction))
-        Path.numAcceptStaging = Path.numAcceptStaging + 1
+        Path.numAcceptStaging += 1
     else
         for a = 1:m-1
             tSlice = ModTslice((alpha_start + a), Param.nTsl)
@@ -195,7 +198,7 @@ end
 ### Initialize the determinants and potentials arrays #########################
     function Manent() end
     Manent = WhichManent(Manent, Determinant, Permanent, Boltzmannant, set["bosons"], set["boltzmannons"])
-    UpdateManents(Manent, Param, Path)
+    InstantiateManents(Manent, Param, Path)
     InstantiatePotentials(Param, Path)
     
     # MC iterations
@@ -217,21 +220,21 @@ end
 
         if (steps % Param.observableSkip == 0)
             ### Start accumulating expectation values, etc.
-            binCount = binCount + 1
+            binCount += 1
 
             if (set["spatial-distribution"])
                 SpatialBinCver(Param, Path, distArrayCount)
-                distributionArray = distributionArray + distArrayCount
+                distributionArray += distArrayCount
             end
 
             energy1     += Energy(Param, Path)
             energy2     += energy1*energy1
-            ke          = ke + Path.KE
-            pe          = pe + Path.PE
+            ke          += Path.KE
+            pe          += Path.PE
 
             # NOTE: THIS IS ADDING TOGETHER BOTH PARTICLES AND FINDING THE 
             # RESULTING VALUES. THIS IS JUST FINE FOR A SINGLE PARTICLE, BUT
-            # FAILES MISERABLY FOR MULTIPLE PARTICLES. LIKEWISE, THE ENERGY
+            # FAILS MISERABLY FOR MULTIPLE PARTICLES. LIKEWISE, THE ENERGY
             # HAS TO BE ADJUSTED (it's not giving the expected ~2.16 for two 
             # boltzmannons, but ~1.8 which is expected for 2 bosons). THE 
             # EXPECTATION VALUES FOR THESE WILL HAVE TO BE SEPARATED.
@@ -249,8 +252,8 @@ end
             #=
             for i = 1:Param.nTsl
                 for j = 1:Param.nPar
-                    x1_ave = x1_ave + Path.beads[i,j] / Param.nPar
-                    x2_ave = x2_ave + Path.beads[i,j] * Path.beads[i,j] / Param.nPar
+                    x1_ave += Path.beads[i,j] / Param.nPar
+                    x2_ave += Path.beads[i,j] * Path.beads[i,j] / Param.nPar
                 end
             end
             =#
@@ -292,7 +295,7 @@ end
             end # end of the binning if()
         end # enf of the observableSkip if()
         
-        steps = steps + 1
+        steps += 1
     end # end of the while(samples) loop
 
     println("UUID of file(s): $(Param.uid)")

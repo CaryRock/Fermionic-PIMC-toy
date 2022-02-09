@@ -37,18 +37,22 @@ end
     end
     return det(Path.determinants)
 end
-
+# For recursion reasons, this should probably be changed to
+# @inbounds function Permanent(Param.tau, Param.nTsl, Param.nPar, beads::Array{Float64,}
 @inbounds function Permanent(Param::Params, Path::Paths, tSlice::Int64)
-    Neg1o2tau = -1/(2 * Param.tau)
+    Neg1o2tau = 1.0/(2.0 * Param.tau)
     tModPlus = ModTslice(tSlice + 1, Param.nTsl)
 
     if (Param.nPar == 1)
-        return exp(Neg1o2tau * 
-                   (Path.beads[tSlice,1] - Path.beads[tModPlus,1])^2 )
+        return MathConstants.e
+#        return exp(Neg1o2tau * 
+#                   (Path.beads[tSlice,1] - Path.beads[tModPlus,1])^2 )
     elseif (Param.nPar == 2)
         return ( 
-                exp(Neg1o2tau * (Path.beads[tSlice, 1] + Path.beads[tModPlus, 2] )^2) + 
-                exp(Neg1o2tau * (Path.beads[tSlice, 2] + Path.beads[tModPlus, 1] )^2)
+                exp(Neg1o2tau * ( (Path.beads[tSlice, 1] - Path.beads[tModPlus, 1] )^2 + 
+                                 (Path.beads[tSlice, 2] - Path.beads[tModPlus, 2] )^2 ) ) + 
+                    exp(Neg1o2tau * ( (Path.beads[tSlice, 1] - Path.beads[tModPlus, 2] )^2 + 
+                                     (Path.beads[tSlice, 2] - Path.beads[tModPlus, 1] )^2 ) )
                )
     else
         println("This part isn't done yet!")
@@ -59,6 +63,7 @@ end
 @inline function Boltzmannant(Param::Params, Path::Paths, tSlice::Int64)
     return MathConstants.e
 end
+
 #=
 @inbounds function InitializeDeterminants(Param::Params, Path::Paths)
     for tSlice = 1:Param.nTsl
@@ -77,7 +82,8 @@ end
     end
 end
 =#
-@inbounds function UpdateManents(Manent::Function, Param::Params, Path::Paths)
+
+@inbounds function InstantiateManents(Manent::Function, Param::Params, Path::Paths)
     for ptcl = 1:Param.nPar
         for tSlice = 1:Param.nTsl
             Path.determinants[tSlice, ptcl] = Manent(Param, Path, tSlice)
@@ -85,13 +91,15 @@ end
     end
 end
 
+#=
 @inbounds function InitializeBoltzmannant(Param::Params, Path::Paths)
     for tSlice = 1:Param.nTsl
         for ptcl = 1:Param.nPar
-            Path.determinants[tSlice, ptcl] = 1.0
+            Path.determinants[tSlice, ptcl] = MathConstants.e
         end
     end
 end
+=#
 
 @inbounds function InstantiatePotentials(Param::Params, Path::Paths)
     for tSlice = 1:Param.nTsl
@@ -127,37 +135,6 @@ function ComputeAction(Param::Params, Path::Paths, tSlice::Int64)
     return action
 end
 
-Base.@propagate_inbounds function AltComputeAction(Param::Params, Path::Paths, action::Float64)
-    # Computes the potential action of a particle along its worldline
-    #action = 0.0
-    result = zeros(Float64, Param.nPar * Param.nTsl)
-
-    for ptcl = 1:Param.nPar
-        for tSlice = 1:Param.nTsl
-            tModPlus = ModTslice(tSlice + 1, Param.nTsl)
-            if ( CutOff(Path.beads[tSlice, ptcl], Path.beads[tModPlus, ptcl]) )
-                #action += 0.0
-                result[(ptcl - 1) * Param.nTsl + tSlice ] = 0.0
-            else
-                #action += ( Path.potentials[tSlice, ptcl] + Path.potentials[tModPlus, ptcl] ) * 
-                #            Path.determinants[tSlice, ptcl]
-                #
-                result[(ptcl - 1) * Param.nTsl + tSlice ] = ( Path.potentials[tSlice, ptcl] + Path.potentials[tModPlus, ptcl] ) * 
-                            Path.determinants[tSlice, ptcl]
-            end
-        end
-    end
-    
-    for ptcl = 1:Param.nPar
-        for tSlice = 1:Param.nTsl
-            action += result[(ptcl - 1) * Param.nTsl + tSlice ]
-        end
-    end
-
-    #return action
-end
-
-# TODO: FIGURE OUT HOW TO MAKE THIS FUNCTION WORK WITH ExtPotential() AND @turbo
 @inline function UpdatePotential(Path::Paths, tSlice::Int64, ptcl::Int64, lam::Float64)
     @inbounds Path.potentials[tSlice,ptcl] = ExtPotential(lam,Path.beads[tSlice,ptcl])
 end
@@ -178,7 +155,7 @@ end
 
 function UpdateManent(Manent::Function, Param::Params, Path::Paths, tSlice::Int64, ptcl::Int64)
     tModMinus = ModTslice(tSlice - 1, Param.nTsl)
-
+    
     Path.determinants[tModMinus, ptcl] = Manent(Param, Path, tModMinus)
     Path.determinants[tSlice, ptcl] = Manent(Param, Path, tSlice)
 end
