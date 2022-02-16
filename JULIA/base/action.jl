@@ -20,21 +20,34 @@ end
     tModPlus = ModTslice(tSlice + 1, Param.nTsl)
 
     if (Param.nPar == 1)
-        return exp(-1/(2*tau) * 
-                   (Path.beads[tSlice,1] - Path.beads[tModPlus,1])^2 )
-    end
-
-    for ptclRow = 1:Param.nTsl
-        for ptclCol = 1:Param.nPar
-            # Iterate over the beads - recall, Julia is Column-major
-            if (CutOff(Path.beads[tSlice,ptclRow], Path.beads[tModPlus,ptclCol]))
-                Path.determinants[ptclRow,ptclCol] = 1.0
-            else
-                Path.determinants[ptclRow,ptclCol] = exp(-1/(2*tau) * 
-                    (Path.beads[tSlice,ptclRow] - Path.beads[tModPlus,ptclCol])^2)
+        return MathConstants.e
+        #return exp(-1/(2*tau) * 
+        #           (Path.beads[tSlice,1] - Path.beads[tModPlus,1])^2 )
+    elseif (Param.nPar == 2)
+        return ( 
+                exp(Neg1o2tau * ( (Path.beads[tSlice, 1] - Path.beads[tModPlus, 1] )^2 + 
+                                 (Path.beads[tSlice, 2] - Path.beads[tModPlus, 2] )^2 ) ) - 
+                    exp(Neg1o2tau * ( (Path.beads[tSlice, 1] - Path.beads[tModPlus, 2] )^2 + 
+                                     (Path.beads[tSlice, 2] - Path.beads[tModPlus, 1] )^2 ) )
+               )
+    else
+        println("This part isn't done yet!")
+        exit()
+        #=
+        for ptclRow = 1:Param.nTsl
+            for ptclCol = 1:Param.nPar
+                # Iterate over the beads - recall, Julia is Column-major
+                if (CutOff(Path.beads[tSlice,ptclRow], Path.beads[tModPlus,ptclCol]))
+                    Path.determinants[ptclRow,ptclCol] = 1.0
+                else
+                    Path.determinants[ptclRow,ptclCol] = exp(-1/(2*tau) * 
+                        (Path.beads[tSlice,ptclRow] - Path.beads[tModPlus,ptclCol])^2)
+                end
             end
         end
+        =#
     end
+
     return det(Path.determinants)
 end
 # For recursion reasons, this should probably be changed to
