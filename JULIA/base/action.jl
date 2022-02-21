@@ -15,8 +15,8 @@ end
 
 @inbounds function Determinant(Param::Params, Path::Paths,tSlice::Int64)
     # Just short-circuit the whole thing for Boltzmannons
-    return 1.0
-    tau = Param.tau
+#    tau = Param.tau
+    Neg1o2tau = 1.0 / (2.0 * Param.tau)
     tModPlus = ModTslice(tSlice + 1, Param.nTsl)
 
     if (Param.nPar == 1)
