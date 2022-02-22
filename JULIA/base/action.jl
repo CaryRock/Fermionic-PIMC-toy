@@ -14,15 +14,12 @@ function WhichManent(Manent::Function, Determinant::Function,
 end
 
 @inbounds function Determinant(Param::Params, Path::Paths,tSlice::Int64)
-    # Just short-circuit the whole thing for Boltzmannons
-#    tau = Param.tau
     Neg1o2tau = 1.0 / (2.0 * Param.tau)
     tModPlus = ModTslice(tSlice + 1, Param.nTsl)
 
     if (Param.nPar == 1)
-        return MathConstants.e
-        #return exp(-1/(2*tau) * 
-        #           (Path.beads[tSlice,1] - Path.beads[tModPlus,1])^2 )
+        return 1.0
+        #return MathConstants.e
     elseif (Param.nPar == 2)
         return ( 
                 exp(Neg1o2tau * ( (Path.beads[tSlice, 1] - Path.beads[tModPlus, 1] )^2 + 
@@ -33,19 +30,6 @@ end
     else
         println("This part isn't done yet!")
         exit()
-        #=
-        for ptclRow = 1:Param.nTsl
-            for ptclCol = 1:Param.nPar
-                # Iterate over the beads - recall, Julia is Column-major
-                if (CutOff(Path.beads[tSlice,ptclRow], Path.beads[tModPlus,ptclCol]))
-                    Path.determinants[ptclRow,ptclCol] = 1.0
-                else
-                    Path.determinants[ptclRow,ptclCol] = exp(-1/(2*tau) * 
-                        (Path.beads[tSlice,ptclRow] - Path.beads[tModPlus,ptclCol])^2)
-                end
-            end
-        end
-        =#
     end
 
     return det(Path.determinants)
@@ -57,9 +41,8 @@ end
     tModPlus = ModTslice(tSlice + 1, Param.nTsl)
 
     if (Param.nPar == 1)
-        return MathConstants.e
-#        return exp(Neg1o2tau * 
-#                   (Path.beads[tSlice,1] - Path.beads[tModPlus,1])^2 )
+        return 1.0
+        #return MathConstants.e
     elseif (Param.nPar == 2)
         return ( 
                 exp(Neg1o2tau * ( (Path.beads[tSlice, 1] - Path.beads[tModPlus, 1] )^2 + 
@@ -74,7 +57,7 @@ end
 end
 
 @inline function Boltzmannant(Param::Params, Path::Paths, tSlice::Int64)
-    return MathConstants.e
+    return 1.0  #MathConstants.e
 end
 
 #=
@@ -142,7 +125,7 @@ function ComputeAction(Param::Params, Path::Paths, tSlice::Int64)
             action += 0.0
         else
             action += ( Path.potentials[tSlice,ptcl] + Path.potentials[tModPlus,ptcl] ) * 
-                        log(Path.determinants[tSlice,ptcl])
+                Path.determinants[tSlice, ptcl] #log(Path.determinants[tSlice,ptcl])
         end
     end
     return action
