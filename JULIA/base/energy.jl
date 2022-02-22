@@ -24,14 +24,15 @@ end
 @inbounds function PotentialEnergy(Param::Params, potentials::Matrix{Float64})
     # Computes the potential energy of the particle(s)
     pe = 0.0
-
+    
     for tSlice = 1:Param.nTsl
-        tModPlus = ModTslice(tSlice + 1, Param.nTsl)
+        #tModPlus = ModTslice(tSlice + 1, Param.nTsl)
         for ptcl = 1:Param.nPar
-            pe += potentials[tSlice, ptcl] + potentials[tModPlus,ptcl]
+            #pe += potentials[tSlice, ptcl] + potentials[tModPlus,ptcl]
+            pe += potentials[tSlice, ptcl]
         end
     end
-    return pe / (2.0 * Param.nTsl)
+    return pe / Param.nTsl #(2.0 * Param.nTsl)
 end
 
 function Energy(Param::Params, Path::Paths)
