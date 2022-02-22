@@ -1,4 +1,4 @@
-# Contains the functions that interact with the action of the particle(s)
+# Chooses the function that interact with the action of the particle(s)
 function WhichManent(Manent::Function, Determinant::Function, 
         Permanant::Function, Boltzmannant::Function, bosons::Bool, boltzmannons::Bool)
     if bosons && !boltzmannons
@@ -13,6 +13,8 @@ function WhichManent(Manent::Function, Determinant::Function,
     end
 end
 
+# For recursion reasons, this should probably be changed to
+# @inbounds function Determinant(Param.tau, Param.nTsl, Param.nPar, beads::Array{Float64,}, tSlice)
 @inbounds function Determinant(Param::Params, Path::Paths,tSlice::Int64)
     Neg1o2tau = 1.0 / (2.0 * Param.tau)
     tModPlus = ModTslice(tSlice + 1, Param.nTsl)
@@ -35,7 +37,7 @@ end
     return det(Path.determinants)
 end
 # For recursion reasons, this should probably be changed to
-# @inbounds function Permanent(Param.tau, Param.nTsl, Param.nPar, beads::Array{Float64,}
+# @inbounds function Permanent(Param.tau, Param.nTsl, Param.nPar, beads::Array{Float64,}, tSlice)
 @inbounds function Permanent(Param::Params, Path::Paths, tSlice::Int64)
     Neg1o2tau = 1.0/(2.0 * Param.tau)
     tModPlus = ModTslice(tSlice + 1, Param.nTsl)
