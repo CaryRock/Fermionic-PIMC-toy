@@ -1,12 +1,14 @@
 import numpy as np
 import sys
 
-def class PF:
+class PF:
     # Partition function class. Each should have at least a Z and an eZ
     # for recursion
-    __init__(L):
+    def __init__(self, L, Potential, Interaction):
         self.Z = np.zeros(L)
         self.eZ = np.zeros(L)
+        self.PotentialE = Potential
+        self.InteractionE = Interaction
 
 def Single_Energy(j):
     return j + 0.5
@@ -32,7 +34,7 @@ def main():
     for i in range(L):
         energy[i] = Single_Energy(i)
     
-    Zarray = [PF(L) for i in range(N)]
+    #Zarray = [PF(L) for i in range(N)]
     
     Z1 = np.zeros(L)    # Zarray[0].Z
     Z2 = np.zeros(L)    # Zarray[1].Z

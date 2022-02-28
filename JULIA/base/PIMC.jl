@@ -43,13 +43,13 @@
     for tSlice = 1:Param.nTsl
         newAction += ComputeAction(Param, Path,tSlice)
     end
-    newAction *= Param.tau/2.0 #tauO2
+    newAction *= Param.tau/2.0
 
     if rand(rng) < exp(-(newAction - oldAction))    # TODO: FIX THIS SO THAT IT IS ONLY DONE WHEN IT IS SUPPOSED TO
         Path.numAcceptCOM += 1
     else
         for tSlice = 1:Param.nTsl # @turbo
-            Path.beads[tSlice,ptcl] = Path.beads[tSlice,ptcl] - shift   # @inbounds
+            Path.beads[tSlice,ptcl] -= shift   # @inbounds
 
             for ptcl = 1:Param.nPar
                 Path.potentials[tSlice,ptcl] = oldPotentials[tSlice,ptcl]   # Restore old potentials  # @inbounds
@@ -290,6 +290,8 @@ end
                 # After recording, zero out the accumulators as well as binCount
                 x1_ave  = 0.0
                 x2_ave  = 0.0
+                ke      = 0.0
+                pe      = 0.0
                 energy1 = 0.0
                 energy2 = 0.0
             end # end of the binning if()
