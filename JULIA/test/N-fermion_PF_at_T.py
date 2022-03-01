@@ -1,8 +1,24 @@
 import numpy as np
 import sys
 
+"""
+Consider: what are the high and low temperature limits that should be considered?
+In the high-temperature limit, the energies should basically approach those of
+the classical, distinguishable particles (governed by Boltzmann statistics). In
+the low-temperature limit, they should definitely be quantum, different. The job
+of this code: to connect the dots.
+"""
+
 def Single_Energy(j):
     return j + 0.5
+
+class PF:
+    def __init__(self, E_function, T):
+        self.E = E_function
+        self.T = T
+
+    def get_cutoff_length(T):
+        
 
 # Partition() through Deriv_SofK() can be condensed
 def Partition(energy, T, L):
@@ -46,11 +62,20 @@ def main():
     w = 1.0
     kB = 1.0
     L = 10  # Cutoff - the number of energy levels to compute to approximate "infinity"
+    # TODO: IMPLEMENT TEMPERATURE CUTOFF FOR COMPUTING ENERGY LEVELS
+    # When is there a sufficient number of energy levels taken? When E/T >> 1 => e^-(E/T) approx 1
     eta = -1
     energy = np.zeros(L)
     for i in range(L):
         energy[i] = Single_Energy(i)
     
+    """
+    Since the energy is now variable depending on the temperature that the PF
+    is being evaluated at, should bring back the class-based definition of Z 
+    and have each Z record its own energy spectrum, Sk_array, and the corresponding
+    derivatives.
+    """
+
     Z_array = [1.0 for i in range(Nplus)] # Array to store PFs - N+1 because 0 -> N
     dZdB_array = [1.0 for i in range(Nplus)]
     Sk_array = [1.0 for i in range(Nplus)]
