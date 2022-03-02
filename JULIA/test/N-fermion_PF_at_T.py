@@ -77,7 +77,7 @@ def main():
     hbar = 1.0
     w = 1.0
     kB = 1.0
-    L = int(10.0 * T)  # Cutoff - the number of energy levels to compute
+    L = int(20.0 * T)  # Cutoff - the number of energy levels to compute
     # When is there a sufficient number of energy levels taken? When E/T >> 1 => e^-(E/T) approx 1
     eta = -1
     energy = np.zeros(L)
@@ -141,7 +141,7 @@ def main():
 
     E = numer / denom
 
-    print(f"T = {T}\tE = {E}")
+    print(f"{T}\t{E}")
 
 if __name__ == "__main__":
     main()

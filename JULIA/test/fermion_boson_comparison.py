@@ -11,11 +11,17 @@ def main():
     
     with open(fermions, "r") as fer:
         fermion_data = np.loadtxt(fer)
+    
+    bosons = boson_data[:,1]
+    fermions = fermion_data[:,1]
 
-    temps = np.linspace(1, len(boson_data), len(boson_data))
-    plt.plot(temps, boson_data, 'b.', label="Boson <E>, N = 2")
-    plt.plot(temps, fermion_data, 'r.', label="Fermion <E>, N = 2")
-    plt.plot(temps, fermion_data - boson_data, 'k.', label="Difference")
+    for i in range(len(bosons)):
+        print(fermions[i] - bosons[i])
+    
+    temps = boson_data[:,0]#np.linspace(1, len(boson_data), len(boson_data))
+    plt.plot(temps, bosons, 'b.', label="Boson <E>, N = 2")
+    plt.plot(temps, fermions, 'r.', label="Fermion <E>, N = 2")
+    plt.plot(temps, fermions - bosons, 'k.', label="Difference")
     plt.xlabel("T (K)")
     plt.ylabel("Energy (K)")
     plt.legend()

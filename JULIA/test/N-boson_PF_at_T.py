@@ -28,7 +28,7 @@ def main():
     hbar = 1.0
     w = 1.0
     kB = 1.0
-    L = 10
+    L = int(20.0 * T)
 
     energy = np.zeros(L)
     for i in range(L):
@@ -62,7 +62,7 @@ def main():
 
     E = numer / denom
 
-    print(f"E is approximately: {E}")
+    print(f"{T}\t{E}")
 
 if __name__ == "__main__":
     main()
