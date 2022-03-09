@@ -131,15 +131,15 @@ def main():
         eZ2[i] = 2.0 * energy[i] * np.exp(-2.0 * energy[i] / T)
     
     denom = sum(Z1) - sum(Z2)
-    numer = 0.0
-    for i in range(L):
-        for j in range(L):
-            numer += (energy[i] + energy[j]) * np.exp(-(energy[i] + energy[j])/T)
+    #numer = 0.0
+    #for i in range(L):
+    #    for j in range(L):
+    #        numer += (energy[i] + energy[j]) * np.exp(-(energy[i] + energy[j])/T)
+    #
+    #    numer -= 2.0 * energy[i] * np.exp(-2 * energy[i] / T)
 
-        numer -= 2.0 * energy[i] * np.exp(-2 * energy[i] / T)
-
-
-    E = numer / denom
+    
+    E = (sum(eZ1) - 2.0 * sum(eZ2)) / (2.0 * denom)    #numer / denom
 
     print(f"{T}\t{E}")
 

@@ -49,7 +49,7 @@ def main(argv=None):
         plt.semilogy(temps, bosons, 'b.')
         plt.semilogy(temps, fermions, 'r.')
 
-    plt.plot(temps, fermions - bosons, 'k.', label="Difference")
+    plt.plot(temps, np.abs(fermions - bosons), 'k.', label="Difference")
     plt.xlabel("T (K)")
     plt.ylabel("Energy (K)")
     plt.legend()

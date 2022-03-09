@@ -42,25 +42,21 @@ def main():
     eZ2 = np.zeros(L)   # Zarray[1].eZ
     for i in range(L):
         for j in range(L):
-            #Zarray[i].Z += np.exp(-(energy[i] + energy[j])/T)
             Z1[i] += np.exp(-(energy[i] + energy[j])/T)
-            #Zarray[i].eZ+= (energy[i] + energy[j]) * np.exp(-(energy[i] + energy[j])/T)
             eZ1[i] += (energy[i] + energy[j]) * np.exp(-(energy[i] + energy[j])/T)
-        #Z2[i] = Partition(2.0*energy, T, L)
         Z2[i] = np.exp(-2.0 * energy[i] / T)
         eZ2[i] = 2.0 * energy[i] * np.exp(-2.0 * energy[i] / T)
     
     denom = sum(Z1) + sum(Z2)
-    # denon = np.sum(Zarray)
-    numer = 0.0
-    for i in range(L):
-        for j in range(L):
-            numer += (energy[i] + energy[j]) * np.exp(-(energy[i] + energy[j])/T)
+    #numer = 0.0
+    #for i in range(L):
+    #    for j in range(L):
+    #        numer += (energy[i] + energy[j]) * np.exp(-(energy[i] + energy[j])/T)
+    #
+    #    numer += 2.0 * energy[i] * np.exp(-2.0 * energy[i] / T)
 
-        numer += 2.0 * energy[i] * np.exp(-2 * energy[i] / T)
-
-
-    E = numer / denom
+    # This factor of 2 is because summing over i, j leads to duplicates
+    E = (sum(eZ1) + 2.0 * sum(eZ2)) / (2.0 * denom) #numer / (2.0 * denom)
 
     print(f"{T}\t{E}")
 
