@@ -42,8 +42,8 @@ def main(argv=None):
     
     temps = boson_data[:,0]#np.linspace(1, len(boson_data), len(boson_data))
     if not args.logy:
-        plt.plot(temps, bosons, 'b.', label="Boson <E>, N = 2")
-        plt.plot(temps, fermions, 'r.', label="Fermion <E>, N = 2")
+        plt.plot(temps[0:10], bosons[0:10], 'b.', label="Boson <E>, N = 2")
+        plt.plot(temps[0:10], fermions[0:10], 'r.', label="Fermion <E>, N = 2")
 
     else:
         plt.semilogy(temps, bosons, 'b.')

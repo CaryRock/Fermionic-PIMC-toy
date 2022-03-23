@@ -132,6 +132,7 @@ def main():
     
     denom = sum(Z1) - sum(Z2)
     numer = 0.0
+    # Is this actually doing what I think it's supposed to be doing?
     for i in range(L):
         for j in range(L):
             numer += (energy[i] + energy[j]) * np.exp(-(energy[i] + energy[j])/T)
