@@ -52,6 +52,8 @@ def main(argv=None):
     plt.plot(temps, np.abs(fermions - bosons), 'k.', label="Difference")
     plt.xlabel("T (K)")
     plt.ylabel("Energy (K)")
+    plt.axvline(1.5, color="red", style='-')
+    plt.axvline(2.5, color="blue", style='--')
     plt.legend()
     plt.show()
 
