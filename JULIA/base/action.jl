@@ -16,7 +16,7 @@ end
 # For recursion reasons, this should probably be changed to
 # @inbounds function Determinant(Param.tau::Float64, Param.nTsl::Int64, Param.nPar::Int64, beads::Array{Float64,}, tSlice::Int64)
 @inbounds function Determinant(Param::Params, Path::Paths,tSlice::Int64)
-    Neg1o2tau = 1.0 / (2.0 * Param.tau)
+    Neg1o2tau = -1.0 / (2.0 * Param.tau)
     tModPlus = ModTslice(tSlice + 1, Param.nTsl)
 
     if (Param.nPar == 1)
@@ -38,7 +38,7 @@ end
 # For recursion reasons, this should probably be changed to
 # @inbounds function Permanent(Param.tau::Float64, Param.nTsl::Int64, Param.nPar::Int64, beads::Array{Float64,}, tSlice::Int64)
 @inbounds function Permanent(Param::Params, Path::Paths, tSlice::Int64)
-    Neg1o2tau = 1.0 / (2.0 * Param.tau)
+    Neg1o2tau = -1.0 / (2.0 * Param.tau)
     tModPlus = ModTslice(tSlice + 1, Param.nTsl)
 
     if (Param.nPar == 1)
@@ -89,15 +89,14 @@ end
 # computing the density
 @inbounds function ComputeAction(Param::Params, Path::Paths, tSlice::Int64)
     # Computes the potential action of a particle along its worldline
-    action = 0.0
+    action = 0.0 + 0.0im
     tModPlus = ModTslice(tSlice + 1, Param.nTsl)
 
     for ptcl = 1:Param.nPar
         if (CutOff(Path.beads[tSlice,ptcl],Path.beads[tModPlus,ptcl]))
-            action += 0.0
         else
             action += ( Path.potentials[tSlice,ptcl] + Path.potentials[tModPlus,ptcl] ) * 
-                log(abs(Path.determinants[tSlice,ptcl]))
+            log(Complex((Path.determinants[tSlice,ptcl])))
         end
     end
     return action
@@ -106,21 +105,7 @@ end
 @inline function UpdatePotential(Path::Paths, tSlice::Int64, ptcl::Int64, lam::Float64)
     @inbounds Path.potentials[tSlice,ptcl] = ExtPotential(lam,Path.beads[tSlice,ptcl])
 end
-#=
-function UpdateDeterminant(Param::Params, Path::Paths, tSlice::Int64, ptcl::Int64)
-    tModMinus = ModTslice(tSlice - 1, Param.nTsl)
 
-    Path.determinants[tModMinus,ptcl] = Determinant(Param, Path, tModMinus)
-    Path.determinants[tSlice,ptcl] = Determinant(Param, Path, tSlice)
-end
-# Could these be combined into a "UpdateManent"?
-function UpdatePermanent(Param::Params, Path::Paths, tSlice::Int64, ptcl::Int64)
-    tModMinus = ModTslice(tSlice - 1, Patam.nTsl)
-
-    Path.determinants[tModMinus, ptcl] = Permanent(Param, Path, tModMinus)
-    Path.determinants[tSlice, ptcl] = Permanent(Param, Path, tSlice)
-end
-=#
 @inbounds function UpdateManent(Manent::Function, Param::Params, Path::Paths, tSlice::Int64, ptcl::Int64)
     tModMinus = ModTslice(tSlice - 1, Param.nTsl)
     
