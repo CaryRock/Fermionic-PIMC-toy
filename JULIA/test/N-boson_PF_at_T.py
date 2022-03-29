@@ -48,15 +48,22 @@ def main():
         eZ2[i] = 2.0 * energy[i] * np.exp(-2.0 * energy[i] / T)
     
     denom = sum(Z1) + sum(Z2)
+<<<<<<< HEAD
     numer = 0.0
     for i in range(L):
         for j in range(L):
             numer += (energy[i] + energy[j]) * np.exp(-(energy[i] + energy[j])/T)
+=======
+    #numer = 0.0
+    #for i in range(L):
+    #    for j in range(L):
+    #        numer += (energy[i] + energy[j]) * np.exp(-(energy[i] + energy[j])/T)
+    #
+    #    numer += 2.0 * energy[i] * np.exp(-2.0 * energy[i] / T)
+>>>>>>> 631b377e9d7de1d67efa859bdb747e10088fd118
 
-        numer += 2.0 * energy[i] * np.exp(-2 * energy[i] / T)
-
-
-    E = numer / denom
+    # This factor of 2 is because summing over i, j leads to duplicates
+    E = (sum(eZ1) + 2.0 * sum(eZ2)) / (2.0 * denom) #numer / (2.0 * denom)
 
     print(f"{T}\t{E}")
 

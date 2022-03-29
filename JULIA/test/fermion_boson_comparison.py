@@ -9,47 +9,72 @@ def create_parser():
             solver. Computes desired quantities from the PF. Designed with \
             using GNU paralell in mind and storing output "manually".',
             formatter_class=ap.ArgumentDefaultsHelpFormatter)
-    parser.add_argument("-b", "--bosons", type=pl.Path, help="File containing \
-            boson data.")
-    parser.add_argument("-f", "--fermions", type=pl.Path, help="File \
-            containing fermion data.")
+    parser.add_argument("-T", "--Tmax", type=float, help="Maximum T to go run")
     parser.add_argument("-log", "--logy", action='store_true', help="Use \
             numpy's semilogy to plot the results.")
-
+    parser.add_argument("-c", "--cutoff", type=int, help="Cutoff temperature")
+    parser.add_argument("-N", "--N", type=int, help="Number of particles")
+    parser.add_argument("-p", "--production", type=pl.Path, help="File \
+            containing the production code's values.")
     return parser
 
 def main(argv=None):
     if argv is None:
         argv = sys.argv
-
+    
     parser = create_parser()
     args = parser.parse_args(argv[1:])
 
-    bosons = args.bosons
-    fermions = args.fermions
+    tmax = int(args.Tmax)
+    production = args.production
 
-    with open(bosons, "r") as bos:
-        boson_data = np.loadtxt(bos)
-    
-    with open(fermions, "r") as fer:
-        fermion_data = np.loadtxt(fer)
-    
-    bosons = boson_data[:,1]
-    fermions = fermion_data[:,1]
+    L = args.cutoff
+    N = args.N
 
-    for i in range(len(bosons)):
-        print(fermions[i] - bosons[i])
-    
-    temps = boson_data[:,0]#np.linspace(1, len(boson_data), len(boson_data))
+    E_f = N*N/2.0 * np.ones(100*tmax)
+    E_b = N/2.0 * np.ones(100*tmax)
+    E_fhT = np.copy(E_f)
+    E_flT = np.copy(E_f)
+    E_bhT = np.copy(E_b)
+    E_blT = np.copy(E_b)
+
+    temp = np.linspace(0.00001, tmax, 100*tmax)
+    for t in range(len(temp)):
+        for k in range(1,N+1):
+            E_f[t] += k / (np.exp(k / temp[t]) - 1.0)
+            E_b[t] += k / (np.exp(k / temp[t]) - 1.0)
+            E_fhT[t] += 1.0 / (1.0/temp[t] * (1.0 + k/(2.0 * temp[t])))
+            E_bhT[t] += 1.0 / (1.0/temp[t] * (1.0 + k/(2.0 * temp[t])))
+        E_flT[t] += 1.0 / (np.exp(1.0 / temp[t]) - 1)
+        E_blT[t] += 1.0 / (np.exp(1.0 / temp[t]) - 1)
+
+    if args.production is not None:
+        with open(production, "r") as pro:
+            prod_data = np.loadtxt(pro)
+
+        prod_temp = prod_data[:-1, 0]
+        production = prod_data[:-1,1]
+
     if not args.logy:
-        plt.plot(temps[0:10], bosons[0:10], 'b.', label="Boson <E>, N = 2")
-        plt.plot(temps[0:10], fermions[0:10], 'r.', label="Fermion <E>, N = 2")
+        plt.plot(temp, E_b, 'b', label="Boson <E>, N = 2")
+        plt.plot(0, N/2, 'b.')
+        plt.plot(temp, E_f, 'r', label="Fermion <E>, N = 2")
+        plt.plot(0, N*N/2, 'r.')
+
+        plt.fill_between(temp, E_fhT, E_f, alpha=0.33)
+        plt.fill_between(temp, E_bhT, E_b, alpha=0.33)
+        plt.fill_between(temp, E_flT, E_f, alpha=0.5)
+        plt.fill_between(temp, E_blT, E_b, alpha=0.5)
+
+        if args.production is not None:
+            plt.plot(prod_temp, production, 'gx', label="Prod. Boson <E>, N = 2")
 
     else:
         plt.semilogy(temps, bosons, 'b.')
         plt.semilogy(temps, fermions, 'r.')
-
-    plt.plot(temps, fermions - bosons, 'k.', label="Difference")
+    
+    plt.axvline(12.57, color='blue', marker="|", linestyle="dashed")
+    plt.axvline(2.0, color='red', marker="|", linestyle="dashed")
     plt.xlabel("T (K)")
     plt.ylabel("Energy (K)")
     plt.legend()
