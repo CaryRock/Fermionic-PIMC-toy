@@ -15,7 +15,7 @@
     for tSlice = 1:Param.nTsl
         oldAction += ComputeAction(Param, Path, tSlice)
     end
-    oldAction *= Param.tau/2.0 #tauO2
+    oldAction *= -Param.tau/2.0 #tauO2
 
     # Save old potentials to avoid recalculating them
     oldPotentials = zeros(Float64, Param.nTsl, Param.nPar)
@@ -45,7 +45,7 @@
     end
     newAction *= Param.tau/2.0
 
-    if rand(rng) < exp(-(newAction - oldAction))    # TODO: FIX THIS SO THAT IT IS ONLY DONE WHEN IT IS SUPPOSED TO
+    if rand(rng) < exp(-abs((newAction - oldAction)))    # TODO: FIX THIS SO THAT IT IS ONLY DONE WHEN IT IS SUPPOSED TO
         Path.numAcceptCOM += 1
     else
         for tSlice = 1:Param.nTsl # @turbo
@@ -113,7 +113,7 @@ end
     end
     
     # Perform the Metropolis step, if we reject, revert the worldline
-    if rand(rng) < exp(-(newAction - oldAction))
+    if rand(rng) < exp(-abs(newAction - oldAction))
         Path.numAcceptStaging += 1
     else
         for a = 1:m-1

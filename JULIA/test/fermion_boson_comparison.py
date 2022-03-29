@@ -77,6 +77,8 @@ def main(argv=None):
     plt.axvline(2.0, color='red', marker="|", linestyle="dashed")
     plt.xlabel("T (K)")
     plt.ylabel("Energy (K)")
+    plt.axvline(1.5, color="red", style='-')
+    plt.axvline(2.5, color="blue", style='--')
     plt.legend()
     plt.show()
 
