@@ -16,6 +16,14 @@ def create_parser():
     parser.add_argument("-N", "--N", type=int, help="Number of particles")
     parser.add_argument("-p", "--production", type=pl.Path, help="File \
             containing the production code's values.")
+    parser.add_argument("-hf", "--high-temp-fermion", action='store_true', 
+            help="Plot high-temperature expansion of exact fermion energy.")
+    parser.add_argument("-lf", "--low-temp-fermion", action='store_true',
+            help="Plot low-temperature expansion of exact boson energy.")
+    parser.add_argument("-hb", "--high-temp-boson", action='store_true',
+            help="Plot high-temperature expansion of exact boson energy.")
+    parser.add_argument("-lb", "--low-temp-boson", action='store_true',
+            help="Plot low-temperature expansion of exact boson energy.")
     return parser
 
 def main(argv=None):
@@ -38,7 +46,7 @@ def main(argv=None):
     E_bhT = np.copy(E_b)
     E_blT = np.copy(E_b)
 
-    temp = np.linspace(0.00001, tmax, 100*tmax)
+    temp = np.linspace(0.0001, tmax, 100*tmax)
     for t in range(len(temp)):
         for k in range(1,N+1):
             E_f[t] += k / (np.exp(k / temp[t]) - 1.0)
@@ -61,10 +69,14 @@ def main(argv=None):
         plt.plot(temp, E_f, 'r', label="Fermion <E>, N = 2")
         plt.plot(0, N*N/2, 'r.')
 
-        plt.fill_between(temp, E_fhT, E_f, alpha=0.33)
-        plt.fill_between(temp, E_bhT, E_b, alpha=0.33)
-        plt.fill_between(temp, E_flT, E_f, alpha=0.5)
-        plt.fill_between(temp, E_blT, E_b, alpha=0.5)
+        if args.high_temp_fermion:
+            plt.fill_between(temp, E_fhT, E_f, alpha=0.33)
+        if args.low_temp_fermion:
+            plt.fill_between(temp, E_flT, E_f, alpha=0.5)
+        if args.high_temp_boson:
+            plt.fill_between(temp, E_bhT, E_b, alpha=0.33)
+        if args.low_temp_boson:
+            plt.fill_between(temp, E_blT, E_b, alpha=0.5)
 
         if args.production is not None:
             plt.plot(prod_temp, production, 'gx', label="Prod. Boson <E>, N = 2")
@@ -77,8 +89,8 @@ def main(argv=None):
     plt.axvline(2.0, color='red', marker="|", linestyle="dashed")
     plt.xlabel("T (K)")
     plt.ylabel("Energy (K)")
-    plt.axvline(1.5, color="red", style='-')
-    plt.axvline(2.5, color="blue", style='--')
+    #plt.axvline(1.5, color="red")
+    #plt.axvline(2.5, color="blue")
     plt.legend()
     plt.show()
 
