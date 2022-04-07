@@ -7,9 +7,8 @@
     # Attempts a CoM update, displacing the entire particle worldline
     delta = Param.delta
     shift = Shift(rng, delta) 
-    oldAction = 0.0
-    newAction = 0.0
-
+    oldAction = 0.0::Float64
+    newAction = 0.0::Float64
 
     # Store the postiions on the worldline
     for tSlice = 1:Param.nTsl
@@ -17,27 +16,46 @@
     end
     oldAction *= -Param.tau/2.0 #tauO2
 
-    # Save old potentials to avoid recalculating them
+    # Save old dets, potentials, and determiannts array to avoid recalculating them
     oldPotentials = zeros(Float64, Param.nTsl, Param.nPar)
+    oldDeterminants = zeros(Float64, Param.nTsl, Param.nPar)
+    oldDets = zeros(Float64, Param.nTsl, Param.nPar, Param.nPar)    # Sidestep the whole copy thing
     for tSlice = 1:Param.nTsl
         for ptcl = 1:Param.nPar
-            oldPotentials[tSlice,ptcl] = Path.potentials[tSlice,ptcl]   #@inbounds
+            oldPotentials[tSlice,ptcl] = Path.potentials[tSlice,ptcl]
+            oldDeterminants[tSlice, ptcl] = Path.determinants[tSlice, ptcl] 
+            for j = 1:Param.nPar
+                oldDets[tSlice, ptcl, j] = Path.dets[tSlice, ptcl, j]
         end
     end
-
+    #==========================================================================
     if Param.nPar == 1
         # For a single particle, Path.detemrinants doesn't need updating
     else
         # For multiple particles, Path.determinants does need to be updated. The
         # shifts now also affect interbead, interline spacing
+        BuildDeterminantMatrix(Param, Path.beads, Path.dets)
         for tSlice = 1:Param.nTsl
             UpdateManent(Manent, Param, Path, tSlice, ptcl)
         end
     end
+    ==========================================================================#
 
-    for tSlice = 1:Param.nTsl   # @turbo
-        Path.beads[tSlice,ptcl] += shift   # @inbounds
+    for tSlice = 1:Param.nTsl
+        Path.beads[tSlice,ptcl] += shift
+        BuildDeterminantMatrix(Param, Path.beads, Path.dets, tSlice)
         UpdatePotential(Path, tSlice, ptcl, Param.lam)
+    end
+    
+    if Param.nPar == 1
+        # For a single particle, Path.detemrinants doesn't need updating
+    else
+        # For multiple particles, Path.determinants does need to be updated. The
+        # shifts now also affect interbead, interline spacing
+        #BuildDeterminantMatrix(Param, Path.beads, Path.dets)
+        for tSlice = 1:Param.nTsl
+            UpdateManent(Manent, Param, Path, tSlice, ptcl)
+        end
     end
 
     for tSlice = 1:Param.nTsl
@@ -45,14 +63,19 @@
     end
     newAction *= Param.tau/2.0
 
-    if rand(rng) < exp(-abs((newAction - oldAction)))    # TODO: FIX THIS SO THAT IT IS ONLY DONE WHEN IT IS SUPPOSED TO
+    # TODO: FIX THIS SO THAT IT IS ONLY DONE WHEN IT IS SUPPOSED TO
+    if rand(rng) < exp(-abs((newAction - oldAction)))    # Accept the proposed move
         Path.numAcceptCOM += 1
-    else
-        for tSlice = 1:Param.nTsl # @turbo
+        #BuildDeterminantMatrix(Param, Path.beads, Path.dets)
+    else    # Reject the proposed move
+        for tSlice = 1:Param.nTsl # Restore all the previous values
             Path.beads[tSlice,ptcl] -= shift   # @inbounds
 
             for ptcl = 1:Param.nPar
-                Path.potentials[tSlice,ptcl] = oldPotentials[tSlice,ptcl]   # Restore old potentials  # @inbounds
+                Path.potentials[tSlice,ptcl] = oldPotentials[tSlice,ptcl]   # Restore old potentials
+                Path.determinants[tSlice, ptcl] = oldDeterminants[tSlice, ptcl] # Restore old determinants
+                for j = 1:Param.nPar
+                    Path.dets[tSlice, ptcl, j] = oldDets[tSlice, ptcl, j]
             end
         end
     end
@@ -68,14 +91,14 @@ end
 
     Note: does not work for periodic boundary conditions.
     =#
-    oldAction       = 0.0
-    newAction       = 0.0
-    edgeExclusion   = 1   # Totally arbitrary choice
+    oldAction       = 0.0::Float64
+    newAction       = 0.0::Float64
+    edgeExclusion   = 1::Int64   # Totally arbitrary choice
         # The length of the stage - must be less than numTimeSlices
     #m               = Param.nTsl - 2*edgeExclusion
-    m               = 16    # TODO: Implement copmmandline switch for this setting
+    m               = 16::Int64    # TODO: Implement copmmandline switch for this setting
     tau             = Param.tau
-    tauO2           = tau/2
+    tauO2           = tau/2.0::Float64
     oldBeads        = zeros(m-1)
     oldPotentials   = zeros(m-1)
     oldDeterminant  = zeros(m-1)
@@ -104,6 +127,7 @@ end
         UpdatePotential(Path, tSlice, ptcl, Param.lam)
         if Param.nPar == 1
         else
+            BuildDeterminantMatrix(Param, Path.beads, Path.dets, tSlice)
             UpdateManent(Manent, Param, Path, tSlice, ptcl)
         end
         newAction                   += tauO2 * ComputeAction(Param, Path,tSlice)
@@ -113,7 +137,7 @@ end
     end
     
     # Perform the Metropolis step, if we reject, revert the worldline
-    if rand(rng) < exp(-abs(newAction - oldAction))
+    if rand(rng) < exp(-(newAction - oldAction))
         Path.numAcceptStaging += 1
     else
         for a = 1:m-1

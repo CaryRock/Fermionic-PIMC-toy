@@ -13,9 +13,35 @@ function WhichManent(Manent::Function, Determinant::Function,
     end
 end
 
+function BulidDeterminantTensor(Param::Params, beads::Array{Float64,}, dets::Array{Float64,3})
+    Neg1o2tau = -1.0 / (2.0 * Param.tau)
+
+    for tSlice = 1:Param.nTsl:
+        tModPlus = ModTslice(tSlice + 1, Param.nTsl)
+        for i = 1:Param.nPar:
+            for j = 1:Param.nPar:
+                dets[tSlice,i,j] = exp(Neg1o2tau * (Path.beads[tSlice, i] - Path.beads[tModPlus, j])^2)
+            end
+        end
+    end
+end
+
+# Functionally identical to BuildDeterminantTensor, but instead of building the whole tensor, just a single
+# matrix slice of it - useful for iteration
+function BuildDeterminantMatrix(Param::Params, beads::Array{Float64,}, dets::Array{Float64,3}, tSlice::Int64)
+    Net1o2tau = -1.0 / (2.0 * Param.tau)
+    tModPlus = ModTslice(tSlice + 1, Param.nTsl)
+
+    for i = 1:Param.nPar:
+        for j = 1:Param.nPar:
+            dets[tSlice,i,j] = exp(Neg1o2tau * (Path.beads[tSlice, i] - Path.beads[tModPlus, j])^2 )
+        end
+    end
+end
+
 # For recursion reasons, this should probably be changed to
-# @inbounds function Determinant(Param.tau::Float64, Param.nTsl::Int64, Param.nPar::Int64, beads::Array{Float64,}, tSlice::Int64)
-@inbounds function Determinant(Param::Params, Path::Paths,tSlice::Int64)
+# @inbounds function Determinant(Param::Params, beads::Array{Float64,}, tSlice::Int64)
+@inbounds function Determinant(Param::Params, Path::Paths, tSlice::Int64)
     Neg1o2tau = -1.0 / (2.0 * Param.tau)
     tModPlus = ModTslice(tSlice + 1, Param.nTsl)
 
@@ -23,11 +49,18 @@ end
         #return 1.0
         return MathConstants.e
     elseif (Param.nPar == 2)
+        return det(beads)   # Technically, 'beads' here is the slice of the 
+        # array that has the exponential terms (like immediately below)
+    elseif (Param.nPar == -1)
         return ( 
                 exp(Neg1o2tau * ( (Path.beads[tSlice, 1] - Path.beads[tModPlus, 1] )^2 + 
                                  (Path.beads[tSlice, 2] - Path.beads[tModPlus, 2] )^2 ) ) - 
                     exp(Neg1o2tau * ( (Path.beads[tSlice, 1] - Path.beads[tModPlus, 2] )^2 + 
                                      (Path.beads[tSlice, 2] - Path.beads[tModPlus, 1] )^2 ) )
+               )
+    elseif (Param.nPar == 3)
+        return (
+
                )
     else
         println("This part isn't done yet!")

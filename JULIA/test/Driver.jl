@@ -1,7 +1,8 @@
 # Notes
 # * The Max Graves thesis has the derivation of the virial implementation of the
 # KE estimator - unnecessary for this code, but will be interesting/useful later
-
+using MKL
+using LinearAlgebra
 using Dates
 using Random
 using ArgParse
@@ -36,12 +37,13 @@ end
 
 mutable struct Paths
     beads::Array{Float64,}
-    determinants::Array{Float64}
-    potentials::Array{Float64}
-    KE::Float64
-    PE::Float64
-    numAcceptCOM::Float64
-    numAcceptStaging::Float64
+    dets::Array{Float64, 3} # N x N particles, nTsl slices
+    determinants::Array{Float64}    # Am I even using this?
+    potentials::Array{Float64}      # I know I'm definitely using this
+    KE::Float64             # Kinetic Energy
+    PE::Float64             # Potential Energy
+    numAcceptCOM::Float64   # Number of Accepted from COM operation
+    numAcceptStaging::Float64   # Number of Accepted from Staging operation
 end
 
 function parse_commandline()
@@ -329,6 +331,7 @@ file_name = "$(@sprintf("%06.3f",temp))-$(@sprintf("%04.0f",numParticles))-$(@sp
     end
 
     ### Setup the Paths object(s)
+    dets            = zeros(Float64, numTimeSlices, numParticles, numparticles)
     determinants    = zeros(Float64, numTimeSlices, numParticles)
     potentials      = zeros(Float64, numTimeSlices, numParticles)
     numHistBins = 0
@@ -350,7 +353,7 @@ file_name = "$(@sprintf("%06.3f",temp))-$(@sprintf("%04.0f",numParticles))-$(@sp
                     numSamples,     #numSamples
                     file_name,      #baseName
                     uid)            #uuid
-    Path = Paths(beads, determinants, potentials, ke, pe, numAccCom, numAccStag)
+    Path = Paths(beads, dets, determinants, potentials, ke, pe, numAccCom, numAccStag)
 
     # Write the log file so that there's at least that to work with
     logName = "ce-log-" * file_name
