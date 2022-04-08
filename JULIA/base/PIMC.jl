@@ -7,15 +7,15 @@
     # Attempts a CoM update, displacing the entire particle worldline
     delta = Param.delta
     shift = Shift(rng, delta) 
-    oldAction = 0.0
-    newAction = 0.0
+    oldAction = 0.0::Float64
+    newAction = 0.0::Float64
 
 
     # Store the postiions on the worldline
     for tSlice = 1:Param.nTsl
         oldAction += ComputeAction(Param, Path, tSlice)
     end
-    oldAction *= -Param.tau/2.0 #tauO2
+    oldAction *= Param.tau/2.0
 
     # Save old potentials to avoid recalculating them
     oldPotentials = zeros(Float64, Param.nTsl, Param.nPar)
@@ -45,7 +45,7 @@
     end
     newAction *= Param.tau/2.0
 
-    if rand(rng) < exp(-abs((newAction - oldAction)))    # TODO: FIX THIS SO THAT IT IS ONLY DONE WHEN IT IS SUPPOSED TO
+    if rand(rng) < exp(-(newAction - oldAction))    # TODO: FIX THIS SO THAT IT IS ONLY DONE WHEN IT IS SUPPOSED TO
         Path.numAcceptCOM += 1
     else
         for tSlice = 1:Param.nTsl # @turbo
@@ -68,14 +68,14 @@ end
 
     Note: does not work for periodic boundary conditions.
     =#
-    oldAction       = 0.0
-    newAction       = 0.0
-    edgeExclusion   = 1   # Totally arbitrary choice
+    oldAction       = 0.0::Float64
+    newAction       = 0.0::Float64
+    edgeExclusion   = 1::Int64   # Totally arbitrary choice
         # The length of the stage - must be less than numTimeSlices
     #m               = Param.nTsl - 2*edgeExclusion
-    m               = 16    # TODO: Implement copmmandline switch for this setting
-    tau             = Param.tau
-    tauO2           = tau/2
+    m               = 16::Int64    # TODO: Implement copmmandline switch for this setting
+    tau             = Param.tau::Float64
+    tauO2           = tau/2.0::Float64
     oldBeads        = zeros(m-1)
     oldPotentials   = zeros(m-1)
     oldDeterminant  = zeros(m-1)
@@ -113,7 +113,7 @@ end
     end
     
     # Perform the Metropolis step, if we reject, revert the worldline
-    if rand(rng) < exp(-abs(newAction - oldAction))
+    if rand(rng) < exp(-(newAction - oldAction))
         Path.numAcceptStaging += 1
     else
         for a = 1:m-1
@@ -202,18 +202,19 @@ end
     InstantiatePotentials(Param, Path)
     
     # MC iterations
-    sampleCount = 0 # Counts number of samples taken
-    binCount    = 0 # Counts the number of sweeps that have been binned over
-    steps       = 1 # Update counter
+    sampleCount = 0::Int64  # Counts number of samples taken
+    binCount    = 0::Int64  # Counts the number of sweeps that have been binned over
+    steps       = 1::Int64  # Update counter
 
     # Warmup
     println("Equilibriating the simulation...")
     for steps = ProgressBar(1:equilSkip)
         UpdateMC(Manent, Param, Path, rng)
     end
-
+    
+    # Simulation proper
     println("Starting the data collection now...")
-    steps = equilSkip + 1   # Because Julia doesn't "reuse" variables like C/C++ would
+    steps = 1   # Because Julia doesn't "reuse" variables like C/C++ would
     while sampleCount < Param.numSamples
         # The toy code attempts both updates - should I do that here as well?
         UpdateMC(Manent, Param, Path, rng)
@@ -226,19 +227,13 @@ end
                 SpatialBinCver(Param, Path, distArrayCount)
                 distributionArray += distArrayCount
             end
-
+            
+            # Records total Energy of system
             energy1     += Energy(Param, Path)
             energy2     += energy1*energy1
             ke          += Path.KE
             pe          += Path.PE
 
-            # NOTE: THIS IS ADDING TOGETHER BOTH PARTICLES AND FINDING THE 
-            # RESULTING VALUES. THIS IS JUST FINE FOR A SINGLE PARTICLE, BUT
-            # FAILS MISERABLY FOR MULTIPLE PARTICLES. LIKEWISE, THE ENERGY
-            # HAS TO BE ADJUSTED (it's not giving the expected ~2.16 for two 
-            # boltzmannons, but ~1.8 which is expected for 2 bosons). THE 
-            # EXPECTATION VALUES FOR THESE WILL HAVE TO BE SEPARATED.
-            #
             # SEE HOW THE PRODUCTION CODE HANDLES MULTIPLE PARTICLES - DOES IT
             # REPORT THEM ALL TOGETHER, DOES IT HANDLE THEM INDIVIDUALLY, THEN 
             # ADD THOSE EXPECTATION VALUES TOGETHER, SOMETHING ELSE...?
@@ -259,7 +254,7 @@ end
             =#
             if (binCount % binSize == 0)
                 ### Write the binned data to file
-                sampleCount = sampleCount + 1
+                sampleCount += 1
                 if (sampleCount % 256 == 0)
                     println("Writing sample $sampleCount / $(Param.numSamples)")
                 end
@@ -295,7 +290,7 @@ end
                 energy1 = 0.0
                 energy2 = 0.0
             end # end of the binning if()
-        end # enf of the observableSkip if()
+        end # end of the observableSkip if()
         
         steps += 1
     end # end of the while(samples) loop

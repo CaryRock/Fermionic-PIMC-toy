@@ -361,8 +361,8 @@ file_name = "$(@sprintf("%06.3f",temp))-$(@sprintf("%04.0f",numParticles))-$(@sp
     PIMC(Prms, Path, numMCsteps, set, rng)
 
 ### Collect and output any final results ######################################
-    Path.numAcceptCOM       /= ( numEquilibSteps + sweepsToBin * numSamples )*numTimeSlices
-    Path.numAcceptStaging /= ( numEquilibSteps + sweepsToBin * numSamples )*numTimeSlices
+    Path.numAcceptCOM       /= ( numEquilibSteps + sweepsToBin * numSamples )*numTimeSlices*numParticles
+    Path.numAcceptStaging /= ( numEquilibSteps + sweepsToBin * numSamples )*numTimeSlices*numParticles
     logName = "ce-log-" * file_name
     WriteHeader(logName, "#PIMCID: $uid")
     WriteHeader(logName, "CoM Acceptance Ratio:\t\t$(Path.numAcceptCOM)")

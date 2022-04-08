@@ -20,7 +20,7 @@ function BuildDeterminantTensor(Param::Params, beads::Array{Float64,}, dets::Arr
         tModPlus = ModTslice(tSlice + 1, Param.nTsl)
         for i = 1:Param.nPar
             for j = 1:Param.nPar
-                dets[tSlice,i,j] = exp(Neg1o2tau * (beads[tSlice, i] - beads[tModPlus, j])^2)
+                dets[i, j, tSlice] = exp(Neg1o2tau * (beads[tSlice, i] - beads[tModPlus, j])^2)
             end
         end
     end
@@ -95,9 +95,19 @@ end
 end
 
 @inbounds function InstantiateManents(Manent::Function, Param::Params, beads::Array{Float64,})
-    for ptcl = 1:Param.nPar
-        for tSlice = 1:Param.nTsl
+    for tSlice = 1:Param.nTsl
+        for ptcl = 1:Param.nPar
             Path.determinants[tSlice, ptcl] = Manent(Param, beads, tSlice)
+        end
+    end
+end
+
+@inbounds function InstantiateManentsDets(Manent::Function, Param::Params, dets::Array{Float64, 3})
+    for tSlice = 1:Param.nTsl
+        for i = 1:Param.nPar
+            for j = 1:Param.nPar
+                Path.determinants[tSlice, i] = Manent(Param, dets, tSlice)
+            end
         end
     end
 end

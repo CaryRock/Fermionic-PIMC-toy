@@ -331,7 +331,8 @@ file_name = "$(@sprintf("%06.3f",temp))-$(@sprintf("%04.0f",numParticles))-$(@sp
     end
 
     ### Setup the Paths object(s)
-    dets            = zeros(Float64, numTimeSlices, numParticles, numParticles)
+    # Tensors go Row x Column x "slice"
+    dets            = zeros(Float64, numParticles, numParticles, numTimeSlices)
     determinants    = zeros(Float64, numTimeSlices, numParticles)
     potentials      = zeros(Float64, numTimeSlices, numParticles)
     numHistBins = 0

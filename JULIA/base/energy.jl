@@ -17,8 +17,8 @@
             tot -= norm * delR * delR
         end
     end
-    energy = 0.5 * Param.nPar / Param.tau + tot/Param.nTsl
-    return energy/Param.nPar
+    energy = 0.5 * Param.nPar / Param.tau + tot/(Param.nTsl)
+    return energy#/Param.nPar
 end
 
 @inbounds function PotentialEnergy(Param::Params, potentials::Matrix{Float64})
@@ -32,7 +32,7 @@ end
             pe += potentials[tSlice, ptcl]
         end
     end
-    return pe / (Param.nPar * Param.nTsl) #(2.0 * Param.nTsl)
+    return pe / Param.nTsl
 end
 
 function Energy(Param::Params, Path::Paths)

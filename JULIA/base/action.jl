@@ -89,14 +89,14 @@ end
 # computing the density
 @inbounds function ComputeAction(Param::Params, Path::Paths, tSlice::Int64)
     # Computes the potential action of a particle along its worldline
-    action = 0.0 + 0.0im
+    action = 0.0 #+ 0.0im
     tModPlus = ModTslice(tSlice + 1, Param.nTsl)
 
     for ptcl = 1:Param.nPar
         if (CutOff(Path.beads[tSlice,ptcl],Path.beads[tModPlus,ptcl]))
         else
             action += ( Path.potentials[tSlice,ptcl] + Path.potentials[tModPlus,ptcl] ) * 
-            log(Complex((Path.determinants[tSlice,ptcl])))
+                abs(log(Complex((Path.determinants[tSlice,ptcl]))))
         end
     end
     return action
