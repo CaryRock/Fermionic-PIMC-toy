@@ -225,7 +225,7 @@ end
     function Manent() end
     Manent = WhichManent(Manent, Determinant, Permanant, Boltzmannant, set["bosons"], set["boltzmannons"])
     BuildDeterminantTensor(Param, Path.beads, Path.dets)
-    InstantiateManents(Manent, Param, Path.beads)
+    InstantiateManents(Manent, Param, Path.dets)
     InstantiatePotentials(Param, Path)
     
     # MC iterations
