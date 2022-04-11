@@ -145,8 +145,13 @@ end
     return action
 end
 
-@inline function UpdatePotential(Path::Paths, tSlice::Int64, ptcl::Int64, lam::Float64)
-    @inbounds Path.potentials[tSlice,ptcl] = ExtPotential(lam,Path.beads[tSlice,ptcl])
+@inbounds function UpdatePotential(Param::Params, Path::Paths, tSlice::Int64, ptcl::Int64)
+    tModPlus = ModTSlice(tSlice + 1, Param.nTsl)
+    vextT = ExtPotential(Param.lam, Path.beads[tSlice, ptcl])
+    vextTPlus = ExtPotential(Param.lam, Path.beads[tModPlus, ptcl])
+
+    #Path.potentials[tSlice,ptcl] = ExtPotential(Param.lam,Path.beads[tSlice,ptcl])
+    Path.potentials[tSlice, ptcl] = Param.tau / 2.0 * (vextT + vextTPlus)
 end
 
 @inbounds function UpdateManent(Manent::Function, Param::Params, beads::Array{Float64,}, tSlice::Int64, ptcl::Int64)

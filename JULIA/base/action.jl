@@ -79,7 +79,9 @@ end
             if (CutOff(Path.beads[tSlice,ptcl],Path.beads[tModPlus,ptcl]))
                 Path.potentials[tSlice,ptcl] = 0.0
             else
-                Path.potentials[tSlice,ptcl] = ExtPotential(Param.lam,Path.beads[tSlice,ptcl]) 
+                #Path.potentials[tSlice,ptcl] = Param.tau / 2.0 * vextT
+                Path.potentials[tSlice,ptcl] = Param.tau / 2.0 * (vextT + vextTPlus) 
+                #Path.potentials[tSlice,ptcl] = ExtPotential(Param.lam,Path.beads[tSlice,ptcl]) 
             end
         end
     end
@@ -95,15 +97,22 @@ end
     for ptcl = 1:Param.nPar
         if (CutOff(Path.beads[tSlice,ptcl],Path.beads[tModPlus,ptcl]))
         else
-            action += ( Path.potentials[tSlice,ptcl] + Path.potentials[tModPlus,ptcl] ) * 
-                abs(log(Complex((Path.determinants[tSlice,ptcl]))))
+            action += (Path.potentials[tSlice, ptcl] + Path.potentials[tModPlus, ptcl]) + 
+                abs(log(Complex(Path.determinants[tSlice, ptcl])))
+#            action += ( Path.potentials[tSlice,ptcl] + Path.potentials[tModPlus,ptcl] ) * 
+#                abs(log(Complex((Path.determinants[tSlice,ptcl]))))
         end
     end
     return action
 end
 
-@inline function UpdatePotential(Path::Paths, tSlice::Int64, ptcl::Int64, lam::Float64)
-    @inbounds Path.potentials[tSlice,ptcl] = ExtPotential(lam,Path.beads[tSlice,ptcl])
+@inbounds function UpdatePotential(Param::Params, Path::Paths, tSlice::Int64, ptcl::Int64)
+    tModPlus = ModTslice(tSlice + 1, Param.nTsl)
+
+    vextT = ExtPotential(Param.lam, Path.beads[tSlice, ptcl])
+    vexTPlus = ExtPotential(Param.lam, Path.beads[tModPlus, ptcl])
+
+    Path.potentials[tSlice,ptcl] = Param.tau / 2.0 * (vextT + vexTPlus)
 end
 
 @inbounds function UpdateManent(Manent::Function, Param::Params, Path::Paths, tSlice::Int64, ptcl::Int64)

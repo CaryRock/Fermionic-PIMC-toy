@@ -182,8 +182,10 @@ function UpdateMC(Manent::Function, Param::Params, Path::Paths, rng::MersenneTwi
 end
 
 @inbounds function PIMC(Param::Params, Path::Paths, numSteps::Int64, set::Dict{String, Any}, rng::MersenneTwister)
-### Set up the required variables, arrays, and determine what kind of particles
-# are being simulated. Also, write out some of the various log files.
+#=
+Set up the required variables, arrays, and determine what kind of particles
+are being simulated. Also, write out some of the various log files.
+=#
     x1_ave      = 0.0::Float64
     x2_ave      = 0.0::Float64
     equilSkip   = Param.numEquilibSteps::Int64

@@ -2,6 +2,12 @@
 # requisite helper functions that they call - obviously not meant to be called 
 # on its own.
 
+#=
+#   Takes a permuting function (e.g., Determinant), the Parameters, the Path
+#   object, the rng object, and the specific particle to shift. Shifts the 
+#   particle, then computes the change in the action based on that. Accepts or
+#   rejects and adjusts Path accordingly.
+=#
 @inbounds function CenterOfMassMove!(Manent::Function, Param::Params, 
                             Path::Paths, ptcl::Int64, rng::MersenneTwister)
     # Attempts a CoM update, displacing the entire particle worldline
@@ -15,7 +21,7 @@
     for tSlice = 1:Param.nTsl
         oldAction += ComputeAction(Param, Path, tSlice)
     end
-    oldAction *= Param.tau/2.0
+#    oldAction *= Param.tau/2.0
 
     # Save old potentials to avoid recalculating them
     oldPotentials = zeros(Float64, Param.nTsl, Param.nPar)
@@ -37,15 +43,16 @@
 
     for tSlice = 1:Param.nTsl   # @turbo
         Path.beads[tSlice,ptcl] += shift   # @inbounds
-        UpdatePotential(Path, tSlice, ptcl, Param.lam)
+        UpdatePotential(Param, Path, tSlice, ptcl)
     end
 
     for tSlice = 1:Param.nTsl
         newAction += ComputeAction(Param, Path,tSlice)
     end
-    newAction *= Param.tau/2.0
-
-    if rand(rng) < exp(-(newAction - oldAction))    # TODO: FIX THIS SO THAT IT IS ONLY DONE WHEN IT IS SUPPOSED TO
+#    newAction *= Param.tau/2.0
+    
+    # TODO: FIX THIS SO THAT IT IS ONLY DONE WHEN IT IS SUPPOSED TO
+    if rand(rng) < exp(-(newAction - oldAction) ) #/(2.0 * Param.tau))    
         Path.numAcceptCOM += 1
     else
         for tSlice = 1:Param.nTsl # @turbo
@@ -73,7 +80,7 @@ end
     edgeExclusion   = 1::Int64   # Totally arbitrary choice
         # The length of the stage - must be less than numTimeSlices
     #m               = Param.nTsl - 2*edgeExclusion
-    m               = 16::Int64    # TODO: Implement copmmandline switch for this setting
+    m               = 16::Int64    # TODO: Implement commandline switch for this setting
     tau             = Param.tau::Float64
     tauO2           = tau/2.0::Float64
     oldBeads        = zeros(m-1)
@@ -89,7 +96,7 @@ end
         oldBeads[a]         = Path.beads[tSlice,ptcl]
         oldPotentials[a]    = Path.potentials[tSlice,ptcl]
         oldDeterminant[a]   = Path.determinants[tSlice,ptcl]
-        oldAction           += tauO2 * ComputeAction(Param, Path, tSlice)
+        oldAction           += ComputeAction(Param, Path, tSlice) #* Param.tau/2.0
     end
 
     for a = 1:m-1
@@ -101,19 +108,19 @@ end
                                 tau * Path.beads[alpha_end,ptcl]) / (tau + tau1)
         sigma2                  = 2.0 * Param.lam / (1.0 / tau + 1.0 / tau1)
         Path.beads[tSlice,ptcl] = avex + sqrt(sigma2) * randn(rng)
-        UpdatePotential(Path, tSlice, ptcl, Param.lam)
+        UpdatePotential(Param, Path, tSlice, ptcl)
         if Param.nPar == 1
         else
             UpdateManent(Manent, Param, Path, tSlice, ptcl)
         end
-        newAction                   += tauO2 * ComputeAction(Param, Path,tSlice)
+        newAction               += ComputeAction(Param, Path,tSlice)
             # See Ceperley about this (Potential) Action, how it relates to the
             # Primitive approximation, extra factors of tau in the "accuracy", 
             # etc. In the first few sections.
     end
     
     # Perform the Metropolis step, if we reject, revert the worldline
-    if rand(rng) < exp(-(newAction - oldAction))
+    if rand(rng) < exp(-(newAction - oldAction) )
         Path.numAcceptStaging += 1
     else
         for a = 1:m-1

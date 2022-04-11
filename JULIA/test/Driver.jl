@@ -1,19 +1,17 @@
 # Notes
 # * The Max Graves thesis has the derivation of the virial implementation of the
 # KE estimator - unnecessary for this code, but will be interesting/useful later
-using MKL
-using LinearAlgebra
-using Dates
-using Random
-using ArgParse
-using Printf
-#using LoopVectorization
+using MKL           # Intel's linear algebra library - fastfast
+using LinearAlgebra # Linear algebra library - functions, etc.
+using Dates         # To get the date
+using Random        # Library of pRNGs and related
+using ArgParse      # To parse commandline arguments
+using Printf        # To help write files
 using ProgressBars  # Entirely vain - just gives the pretty progress bar
 using UUIDs         # I sort-of despise this language. I really kind of do.
 
-#using .Threads
-
-using TimerOutputs  # Optimization profiling
+#Using Threads       # Testing - not used
+#using TimerOutputs  # Optimization profiling
 
 struct Params
     nPar::Int64             # Number of particles
@@ -46,11 +44,15 @@ mutable struct Paths
     numAcceptStaging::Float64   # Number of Accepted from Staging operation
 end
 
+#=
+Parses commandline arguments, returns set of argumnets to main program for 
+simulation use.
+=#
 function parse_commandline()
     set = ArgParseSettings()
 
     @add_arg_table set begin
-### Required values ###########################################################
+    ### Required values ###########################################################
         "--temp", "-T"
             help = "Temperature in K"
             required = true
@@ -66,10 +68,10 @@ function parse_commandline()
             required = true
             arg_type = Float64
             default = 0.02      # For T = 1 => J = 50
-#        "--numTime", "-J"
-#            help = "Number of time slices"
-#            required = true
-#            arg_type = Int64
+    #        "--numTime", "-J"
+    #            help = "Number of time slices"
+    #            required = true
+    #            arg_type = Int64
         "--numEquil", "-E"
             help = "Number of steps to equilibriate over"
             required = true
@@ -85,7 +87,7 @@ function parse_commandline()
             required = true
             arg_type = Int64
             default = 131072    # 2^17
-### Options for Setting Variables #############################################
+    ### Options for Setting Variables #############################################
         "--sweepsToBin", "-B"
             help = "Sets the desired number of MC sweeps to bin over"
             arg_type = Int64
@@ -112,7 +114,7 @@ function parse_commandline()
         "--boltzmannons", "-z"
             help = "Informs the simulation to use \"boltzmannons\" instead of fermions."
             action = :store_true
-### Optional Output Flags #####################################################
+    ### Optional Output Flags #####################################################
         "--rawX1"
             help = "Reporti raw <x> - WARNING: GENERATES MUCH DATA"
             action = :store_true
@@ -133,29 +135,42 @@ function parse_commandline()
     return parse_args(set)
 end
 
-# The external potential to use
-# If more start being added, this should go into a separate file with the other
-# potentials
+#= 
+The external potential to use
+Input: coefficient, location
+If more start being added, this should go into a separate file with the other
+potentials
+=#
 @inline function ExtPotential(lam::Float64, R::Float64)
     return 1/(4 * lam) * R * R
 end
 
+#=
 # Computes the modular time slice to use
 # +1 because Julia is 1-indexed, not 0-indexed like Python or C
+Input: value to mod, base of ring
+=#
 @inline function ModTslice(tSlice::Int64, numSlices::Int64)
     return (( abs(tSlice) - 1 + numSlices ) % numSlices ) + 1
 end
 
+#=
 # Flags whether or not to truncate the calculation
+Input: Two locations, minimum distance before cutoff
+=#
 @inline function CutOff(beadA::Float64, beadB::Float64, cutoff::Float64=10^-4)
     return ( abs(beadA - beadB) < cutoff )
 end
 
-# Controls the width of the possible shift in position for a bead
+#=
+# Controls the width of and shift in the position for a bead
+Input: Desired pRNG, scaling factor for shift
+=#
 @inline function Shift(rng::MersenneTwister, delta::Float64  = 1.0)
     return delta * (-1.0 + 2.0 * rand(rng))
 end
 
+### Program files to include ##################################################
 include("HeaderWriting.jl") # Contains all the file writing functions
 include("energy.jl")        # Contains the energy equations and estimators
 include("action.jl")        # Contains the functions that compute action,etc.
@@ -164,12 +179,17 @@ include("PIMC.jl")          # The heart of the program, contains the methods
 include("expectations.jl")  # Contains the methods that compute <x>, <x^2>, etc.
 #include("pyBinData.jl")     # Contains only the Python binning implementation
 
+#=
+Gets the commandline invocation for later writing to a file.
+Input: Commandline
+=#
 function GetCommandLineInvocation(ARGS)
     invocation = "julia $PROGRAM_FILE "
     for i = 1:length(ARGS)
         invocation *= ARGS[i] * " "
     end
-    # There's technically that extra space at the end, but that's also in the production code's output, so...
+    # There's technically that extra space at the end, but that's also in the
+    # production code's output, so...
     return invocation
 end
 
@@ -183,8 +203,8 @@ function main()
     lam             = 1/2 # A^2 * K -- hbar^2/(m k_B) -> m = hbar^2 / k_B
     temp            = set["temp"]       # Temperature to run simulation at
     numParticles    = set["numPart"]    # Number of particles
-#    numTimeSlices   = set["numTime"]    # Number of beads along a line
-    tau             = set["tau"]
+    #numTimeSlices   = set["numTime"]    # Number of beads along a line
+    tau             = set["tau"]        # Distance between imaginary time steps
     numEquilibSteps = set["numEquil"]   # Number of steps to equilibriate over
     observableSkip  = set["obsSkip"]    # Number of MC steps between observations
     numSamples      = set["numSamples"] # Defines numMCsteps 
@@ -211,8 +231,8 @@ function main()
     println("Temperature\t= $(temp)")
     println("numMCSteps\t= $(numMCsteps)\n")
     uid = uuid1()
-    initDensity = 1.0
-    imagTimeStep = 1.0
+    initDensity = 1.0   # For file writing to match production code's - unused
+    imagTimeStep = 1.0  # For file writing to match production code's - unused
     
 ### cd to output directory ####################################################
     try
@@ -223,8 +243,8 @@ function main()
     end
 
 ### Create files for output, write headers ####################################
-#Production code naming scheme:$temp            $numParticles                       $initDensity            $imagTimeStep          $uid.dat"
-file_name = "$(@sprintf("%06.3f",temp))-$(@sprintf("%04.0f",numParticles))-$(@sprintf("%06.3f",initDens))-$(@sprintf("%07.5f",tau))-$uid.dat"
+    #Production code naming scheme:$temp            $numParticles                       $initDensity            $imagTimeStep          $uid.dat"
+    file_name = "$(@sprintf("%06.3f",temp))-$(@sprintf("%04.0f",numParticles))-$(@sprintf("%06.3f",initDens))-$(@sprintf("%07.5f",tau))-$uid.dat"
     
     println(file_name)
 
@@ -256,7 +276,7 @@ file_name = "$(@sprintf("%06.3f",temp))-$(@sprintf("%04.0f",numParticles))-$(@sp
     potentials      = zeros(Float64, numTimeSlices, numParticles)
     numHistBins = 0
 
-#TODO: I'VE NAMED THINGS STUPIDLY. UNSTUPIDIFY THEM. NAMELY, binWidth && numMCbins
+    #TODO: I'VE NAMED THINGS STUPIDLY. UNSTUPIDIFY THEM. NAMELY, binWidth && numMCbins
     Prms = Params(numParticles,     #nPar
                     numTimeSlices,  #nTsl
                     lam,            #lam
@@ -296,6 +316,7 @@ file_name = "$(@sprintf("%06.3f",temp))-$(@sprintf("%04.0f",numParticles))-$(@sp
     cd("../..")
 end
 
+### Program run ###############################################################
 if abspath(PROGRAM_FILE) == @__FILE__
     main()
 end
