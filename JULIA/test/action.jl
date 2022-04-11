@@ -1,4 +1,8 @@
-# Chooses the function that interact with the action of the particle(s)
+#=
+Chooses the function that interact with the action of the particle(s)
+Input: Function handle, Determinant/Permanant/Boltzmannant function handles,
+        bools for commandline options for which particles being simulated
+=#
 function WhichManent(Manent::Function, Determinant::Function, 
         Permanant::Function, Boltzmannant::Function, bosons::Bool, boltzmannons::Bool)
     if bosons && !boltzmannons
@@ -13,11 +17,17 @@ function WhichManent(Manent::Function, Determinant::Function,
     end
 end
 
+#=
+Initializes/rebuilds the "Determinant" tensor, which stores all the (uncomputed)
+values of the determinants. Meant to be fed to the Mannet() function that was
+determined above.
+Inputs: Parameters, particle beads matrix, uncomputed/empty determinant tensor
+=#
 function BuildDeterminantTensor(Param::Params, beads::Array{Float64,}, dets::Array{Float64,3})
     Neg1o2tau = -1.0 / (2.0 * Param.tau)
 
     for tSlice = 1:Param.nTsl
-        tModPlus = ModTslice(tSlice + 1, Param.nTsl)
+        tModPlus = ModTslice(tSlice + 1, Param.nTsl)    # Update every iteration
         for i = 1:Param.nPar
             for j = 1:Param.nPar
                 dets[i, j, tSlice] = exp(Neg1o2tau * (beads[tSlice, i] - beads[tModPlus, j])^2)
@@ -26,87 +36,98 @@ function BuildDeterminantTensor(Param::Params, beads::Array{Float64,}, dets::Arr
     end
 end
 
-# Functionally identical to BuildDeterminantTensor, but instead of building the whole tensor, just a single
-# matrix slice of it - useful for iteration
+#=
+Functionally identical to BuildDeterminantTensor, but instead of building the 
+whole tensor, just a single matrix slice of it - useful for iteration or for
+rebuilding a single element/determinant
+Inputs: Parameters, particle beads matrix, determinant tensor, specific time 
+        slice to rebuild
+=#
 function BuildDeterminantMatrix(Param::Params, beads::Array{Float64,}, dets::Array{Float64,3}, tSlice::Int64)
     Net1o2tau = -1.0 / (2.0 * Param.tau)
     tModPlus = ModTslice(tSlice + 1, Param.nTsl)
 
     for i = 1:Param.nPar
         for j = 1:Param.nPar
-            dets[tSlice,i,j] = exp(Neg1o2tau * (Path.beads[tSlice, i] - Path.beads[tModPlus, j])^2 )
+            dets[i,j,tSlice] = exp(Neg1o2tau * (Path.beads[tSlice, i] - Path.beads[tModPlus, j])^2 )
         end
     end
 end
 
+#=
+Computes the determinant of the given matrix.
+=#
 # For recursion reasons, this should probably be changed to
-@inbounds function Determinant(Param::Params, beads::Array{Float64,}, tSlice::Int64)
+@inbounds function Determinant(Param::Params, matrix::Array{Float64,})
     #@inbounds function Determinant(Param::Params, Path::Paths, tSlice::Int64)
-    Neg1o2tau = -1.0 / (2.0 * Param.tau)
-    tModPlus = ModTslice(tSlice + 1, Param.nTsl)
+    #Neg1o2tau = -1.0 / (2.0 * Param.tau)
+    #tModPlus = ModTslice(tSlice + 1, Param.nTsl)
 
     if (Param.nPar == 1)
         #return 1.0
         return MathConstants.e
-    elseif (Param.nPar == 2)
-        return det(beads)   # Technically, 'beads' here is the slice of the 
-        # array that has the exponential terms (like immediately below)
-    elseif (Param.nPar == -1)
-        return ( 
-                exp(Neg1o2tau * ( (beads[tSlice, 1] - beads[tModPlus, 1] )^2 + 
-                                 (beads[tSlice, 2] - beads[tModPlus, 2] )^2 ) ) - 
-                    exp(Neg1o2tau * ( (beads[tSlice, 1] - beads[tModPlus, 2] )^2 + 
-                                     (beads[tSlice, 2] - beads[tModPlus, 1] )^2 ) )
-               )
-    elseif (Param.nPar == 3)
-        return (
-
-               )
+    elseif (Param.nPar > 1)
+        return det(matrix)
     else
-        println("This part isn't done yet!")
+        println("Something has gone wrong in the determinant function!")
         exit()
     end
 end
 
 # For recursion reasons, this should probably be changed to
 # @inbounds function Permanant(Param.tau::Float64, Param.nTsl::Int64, Param.nPar::Int64, beads::Array{Float64,}, tSlice::Int64)
-@inbounds function Permanant(Param::Params, beads::Array{Float64,}, tSlice::Int64)
+@inbounds function Permanant(Param::Params, matrix::Array{Float64,}, tSlice::Int64)
     Neg1o2tau = -1.0 / (2.0 * Param.tau)
     tModPlus = ModTslice(tSlice + 1, Param.nTsl)
 
     if (Param.nPar == 1)
-        #return 1.0
-        return MathConstants.e
+        return 1.0  #MathConstants.e
     elseif (Param.nPar == 2)
         return ( 
-                exp(Neg1o2tau * ( (beads[tSlice, 1] - beads[tModPlus, 1] )^2 + 
-                                 (beads[tSlice, 2] - beads[tModPlus, 2] )^2 ) ) + 
-                    exp(Neg1o2tau * ( (beads[tSlice, 1] - beads[tModPlus, 2] )^2 + 
-                                     (beads[tSlice, 2] - beads[tModPlus, 1] )^2 ) )
+                matrix[tSlice, 1]*matrix[tModPlus, 2] + matrix[tModPlus, 1]*matrix[tSlice, 2]
+                #exp(Neg1o2tau * ( (matrix[tSlice, 1] - matrix[tModPlus, 1] )^2 + 
+                #                 (matrix[tSlice, 2] - matrix[tModPlus, 2] )^2 ) ) + 
+                #    exp(Neg1o2tau * ( (matrix[tSlice, 1] - matrix[tModPlus, 2] )^2 + 
+                #                     (matrix[tSlice, 2] - matrix[tModPlus, 1] )^2 ) )
                )
     else
+    # TODO: FINISH THE PROPER IMPLEMENTATION OF THIS
         println("This part isn't done yet!")
         exit()
     end
 end
-
+#=
+Simply returns 1.0, since e^ln(1) = 1, and adding in action calculations
+=#
 @inline function Boltzmannant(Param::Params, Path::Paths, tSlice::Int64)
-    return MathConstants.e
+    return 1.0  #MathConstants.e
 end
 
-@inbounds function InstantiateManents(Manent::Function, Param::Params, beads::Array{Float64,})
+#=
+Initializes the (computed) determinants vector. Only needs a single index, 
+for iterating over time slices. That is, holds the computed determinants or
+permanants.
+Inputs: permutation function, parameters, particle beads matrix
+=#
+TODO: REWRITE THIS TO WORK FOR VECTOR Path.determinants
+@inbounds function InstantiateManents(Manent::Function, Param::Params, detsMatrix::Array{Float64,3})
     for tSlice = 1:Param.nTsl
         for ptcl = 1:Param.nPar
-            Path.determinants[tSlice, ptcl] = Manent(Param, beads, tSlice)
+            Path.determinants[tSlice] = Manent(Param, detsMatrix[:,:,tSlice])
         end
     end
 end
 
+#=
+Instantiates determinants tensor elements. This tensor is what is fed into
+the permutation function to compute the contribution from particle permutations.
+Inputs: permutation function, parameters, determinant tensor
+=#
 @inbounds function InstantiateManentsDets(Manent::Function, Param::Params, dets::Array{Float64, 3})
     for tSlice = 1:Param.nTsl
         for i = 1:Param.nPar
             for j = 1:Param.nPar
-                Path.determinants[tSlice, i] = Manent(Param, dets, tSlice)
+                Path.dets[i, j, tSlice] = 
             end
         end
     end
@@ -139,7 +160,7 @@ end
         if (CutOff(Path.beads[tSlice,ptcl],Path.beads[tModPlus,ptcl]))
         else
             action += ( Path.potentials[tSlice,ptcl] + Path.potentials[tModPlus,ptcl] ) * 
-                abs(log(Complex((Path.determinants[tSlice,ptcl]))))
+                abs(log(Complex((Path.determinants[tSlice]))))
         end
     end
     return action
@@ -157,6 +178,6 @@ end
 @inbounds function UpdateManent(Manent::Function, Param::Params, beads::Array{Float64,}, tSlice::Int64, ptcl::Int64)
     tModMinus = ModTslice(tSlice - 1, Param.nTsl)
     
-    Path.determinants[tModMinus, ptcl] = Manent(Param, beads, tModMinus)
-    Path.determinants[tSlice, ptcl] = Manent(Param, beads, tSlice)
+    Path.determinants[tModMinus] = Manent(Param, beads, tModMinus)
+    Path.determinants[tSlice] = Manent(Param, beads, tSlice)
 end
