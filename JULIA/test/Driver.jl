@@ -35,7 +35,7 @@ end
 
 mutable struct Paths
     beads::Array{Float64,}
-    dets::Array{Float64, 3}     # N x N particles, nTsl slices; Julia's built different
+    detMat::Array{Float64, 3}   # N x N particles, nTsl slices; Julia's built different
     determinants::Array{Float64}# Holds evaluated abs(ln(array))
     potentials::Array{Float64}  # Computed Potentials contribution to action
     KE::Float64                 # Kinetic Energy
@@ -271,8 +271,8 @@ function main()
 
     ### Setup the Paths object(s)
     # Tensors go Row x Column x "slice"
-    dets            = zeros(Float64, numParticles, numParticles, numTimeSlices)
-    #@printf "Size of dets tensor: %s\n" string(size(dets))
+    detMat            = zeros(Float64, numParticles, numParticles, numTimeSlices)
+    #@printf "Size of detMat tensor: %s\n" string(size(detMat))
     determinants    = zeros(Float64, numTimeSlices)
     potentials      = zeros(Float64, numTimeSlices, numParticles)
     numHistBins = 0
@@ -294,7 +294,7 @@ function main()
                     numSamples,     #numSamples
                     file_name,      #baseName
                     uid)            #uuid
-    Path = Paths(beads, dets, determinants, potentials, ke, pe, numAccCom, numAccStag)
+    Path = Paths(beads, detMat, determinants, potentials, ke, pe, numAccCom, numAccStag)
 
     # Write the log file so that there's at least that to work with
     logName = "ce-log-" * file_name

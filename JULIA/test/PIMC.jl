@@ -2,7 +2,7 @@
 # requisite helper functions that they call - obviously not meant to be called 
 # on its own.
 
-@inbounds function CenterOfMassMove!(Manent::Function, Param::Params, 
+@inbounds function CenterOfMassMove(Manent::Function, Param::Params, 
                             Path::Paths, ptcl::Int64, rng::MersenneTwister)
     # Attempts a CoM update, displacing the entire particle worldline
     delta = Param.delta
@@ -14,12 +14,12 @@
     for tSlice = 1:Param.nTsl
         oldAction += ComputeAction(Param, Path, tSlice)
     end
-    oldAction *= -Param.tau/2.0 #tauO2
+    #oldAction *= -Param.tau/2.0 #tauO2
 
-    # Save old dets, potentials, and determiannts array to avoid recalculating them
+    # Save old detMat, potentials, and determiannts array to avoid recalculating them
     oldPotentials = zeros(Float64, Param.nTsl, Param.nPar)
-    oldDeterminants = zeros(Float64, Param.nTsl, Param.nPar)
-    oldDets = zeros(Float64, Param.nPar, Param.nPar, Param.nTsl)    # Sidestep the whole copy thing
+    oldDeterminants = zeros(Float64, Param.nTsl)
+    oldDetMats = zeros(Float64, Param.nPar, Param.nPar, Param.nTsl)    # Sidestep the whole copy thing
 
     for tSlice = 1:Param.nTsl
         oldDeterminants[tSlice] = Path.determinants[tSlice]
@@ -28,24 +28,10 @@
             oldPotentials[tSlice,ptcl] = Path.potentials[tSlice,ptcl]
 
             for j = 1:Param.nPar
-                oldDets[ptcl, j, tSlice] = Path.dets[ptcl, j, tSlice]
+                oldDetMats[ptcl, j, tSlice] = Path.detMat[ptcl, j, tSlice]
             end
         end
     end
-    #=
-    ===========================================================================
-    if Param.nPar == 1
-        # For a single particle, Path.detemrinants doesn't need updating
-    else
-        # For multiple particles, Path.determinants does need to be updated. The
-        # shifts now also affect interbead, interline spacing
-        BuildDeterminantMatrix(Param, Path.beads, Path.dets)
-        for tSlice = 1:Param.nTsl
-            UpdateManent(Manent, Param, Path, tSlice, ptcl)
-        end
-    end
-    ===========================================================================
-    =#
 
     for tSlice = 1:Param.nTsl
         Path.beads[tSlice,ptcl] += shift
@@ -58,7 +44,7 @@
     else
         # For multiple particles, Path.determinants does need to be updated. The
         # shifts now also affect interbead, interline spacing
-        #BuildDeterminantMatrix(Param, Path.beads, Path.dets)
+        #BuildDeterminantMatrix(Param, Path.beads, Path.detMat)
         for tSlice = 1:Param.nTsl
             UpdateManent(Manent, Param, Path, tSlice, ptcl)
         end
@@ -67,30 +53,26 @@
     for tSlice = 1:Param.nTsl
         newAction += ComputeAction(Param, Path,tSlice)
     end
-    newAction *= Param.tau/2.0
+    #newAction *= Param.tau/2.0
 
-    # TODO: FIX THIS SO THAT IT IS ONLY DONE WHEN IT IS SUPPOSED TO
-    if rand(rng) < exp(-abs((newAction - oldAction)))    # Accept the proposed move
+    if rand(rng) < exp(-abs(newAction - oldAction)) # Accept the proposed move
         Path.numAcceptCOM += 1
-        #BuildDeterminantMatrix(Param, Path.beads, Path.dets)
+        #BuildDeterminantMatrix(Param, Path.beads, Path.detMat)
     else    # Reject the proposed move
         for tSlice = 1:Param.nTsl # Restore all the previous values
             Path.beads[tSlice,ptcl] -= shift   # @inbounds
             Path.determinants[tSlice] = oldDeterminants[tSlice] # Restore old determinants
-    # TODO: WHAT'S GOING ON HERE? WHAT'S GOING ON IN THIS ALGORITHM? VERIFY IT 
-    #       IS DESIGNED CORRECTLY - I HAVE MY DOUBTS THAT IT IS BEHAVING
-    #       OR DESIGNED WELL TO BEGIN WITH
             for ptcl = 1:Param.nPar
                 Path.potentials[tSlice,ptcl] = oldPotentials[tSlice,ptcl]   # Restore old potentials
                 for j = 1:Param.nPar
-                    Path.dets[ptcl, j, tSlice] = oldDets[ptcl, j, tSlice]
+                    Path.detMat[ptcl, j, tSlice] = oldDetMats[ptcl, j, tSlice]
                 end
             end
         end
     end
 end
 
-@inbounds function StagingMove!(Manent::Function, Param::Params, Path::Paths, 
+@inbounds function StagingMove(Manent::Function, Param::Params, Path::Paths, 
                                 ptcl::Int64, rng::MersenneTwister)
     #=
     Attempts a staging move, which exactly samples the free-particle propagator
@@ -107,7 +89,7 @@ end
     #m               = Param.nTsl - 2*edgeExclusion
     m               = 16::Int64    # TODO: Implement copmmandline switch for this setting
     tau             = Param.tau
-    tauO2           = tau/2.0::Float64
+    #tauO2           = tau/2.0::Float64
     oldBeads        = zeros(m-1)
     oldPotentials   = zeros(m-1)
     oldDeterminant  = zeros(m-1)
@@ -121,7 +103,7 @@ end
         tSlice              = ModTslice(alpha_start + a, Param.nTsl)
         oldBeads[a]         = Path.beads[tSlice,ptcl]
         oldPotentials[a]    = Path.potentials[tSlice,ptcl]
-        oldDeterminant[a]   = Path.determinants[tSlice,ptcl]
+        oldDeterminant[a]   = Path.determinants[tSlice]
         oldAction           += ComputeAction(Param, Path, tSlice)
     end
 
@@ -140,7 +122,7 @@ end
             BuildDeterminantMatrix(Param, Path, tSlice)
             UpdateManent(Manent, Param, Path, tSlice, ptcl)
         end
-        newAction                   += ComputeAction(Param, Path,tSlice)
+        newAction               += ComputeAction(Param, Path, tSlice)
             # See Ceperley about this (Potential) Action, how it relates to the
             # Primitive approximation, extra factors of tau in the "accuracy", 
             # etc. In the first few sections.
@@ -152,9 +134,9 @@ end
     else
         for a = 1:m-1
             tSlice = ModTslice((alpha_start + a), Param.nTsl)
-            Path.beads[tSlice,ptcl] = oldBeads[a]
-            Path.potentials[tSlice,ptcl] = oldPotentials[a]
-            Path.determinants[tSlice,ptcl] = oldDeterminant[a]
+            Path.beads[tSlice,ptcl]         = oldBeads[a]
+            Path.potentials[tSlice,ptcl]    = oldPotentials[a]
+            Path.determinants[tSlice]       = oldDeterminant[a]
         end
     end
 end
@@ -180,11 +162,11 @@ end
 function UpdateMC(Manent::Function, Param::Params, Path::Paths, rng::MersenneTwister)
     for time = 1:Param.nTsl        
         for ptcl = 1:rand(rng, 1:Param.nPar)
-            CenterOfMassMove!(Manent, Param, Path, ptcl, rng)
+            CenterOfMassMove(Manent, Param, Path, ptcl, rng)
         end
         
         for ptcl = 1:rand(rng, 1:Param.nPar)
-            StagingMove!(Manent, Param, Path, ptcl, rng)
+            StagingMove(Manent, Param, Path, ptcl, rng)
         end
     end
 end
@@ -234,9 +216,9 @@ are being simulated. Also, write out some of the various log files.
 ### Initialize the determinants and potentials arrays #########################
     function Manent() end   # Just get the thing declared
     Manent = WhichManent(Manent, Determinant, Permanant, Boltzmannant, set["bosons"], set["boltzmannons"])
-    BuildDeterminantTensor(Param, Path.beads, Path.dets)
+    BuildDeterminantTensor(Param, Path.beads, Path.detMat)
+    InstantiateDetMats(Param, Path)
     InstantiateManents(Manent, Param, Path)
-    #InstantiateManentsDets(Manent, Param, Path.dets)
     InstantiatePotentials(Param, Path)
     
     # MC iterations
