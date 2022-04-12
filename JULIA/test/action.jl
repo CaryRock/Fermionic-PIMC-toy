@@ -43,13 +43,13 @@ rebuilding a single element/determinant
 Inputs: Parameters, particle beads matrix, determinant tensor, specific time 
         slice to rebuild
 =#
-function BuildDeterminantMatrix(Param::Params, beads::Array{Float64,}, dets::Array{Float64,3}, tSlice::Int64)
-    Net1o2tau = -1.0 / (2.0 * Param.tau)
+function BuildDeterminantMatrix(Param::Params, Path::Paths, tSlice::Int64)
+    Neg1o2tau = -1.0 / (2.0 * Param.tau)
     tModPlus = ModTslice(tSlice + 1, Param.nTsl)
 
     for i = 1:Param.nPar
         for j = 1:Param.nPar
-            dets[i,j,tSlice] = exp(Neg1o2tau * (Path.beads[tSlice, i] - Path.beads[tModPlus, j])^2 )
+            Path.dets[i,j,tSlice] = exp(Neg1o2tau * (Path.beads[tSlice, i] - Path.beads[tModPlus, j])^2 )
         end
     end
 end
@@ -109,12 +109,9 @@ for iterating over time slices. That is, holds the computed determinants or
 permanants.
 Inputs: permutation function, parameters, particle beads matrix
 =#
-TODO: REWRITE THIS TO WORK FOR VECTOR Path.determinants
-@inbounds function InstantiateManents(Manent::Function, Param::Params, detsMatrix::Array{Float64,3})
+@inbounds function InstantiateManents(Manent::Function, Param::Params, Path::Paths)
     for tSlice = 1:Param.nTsl
-        for ptcl = 1:Param.nPar
-            Path.determinants[tSlice] = Manent(Param, detsMatrix[:,:,tSlice])
-        end
+        Path.determinants[tSlice] = Manent(Param, Path.dets[:,:,tSlice])
     end
 end
 
@@ -123,11 +120,15 @@ Instantiates determinants tensor elements. This tensor is what is fed into
 the permutation function to compute the contribution from particle permutations.
 Inputs: permutation function, parameters, determinant tensor
 =#
-@inbounds function InstantiateManentsDets(Manent::Function, Param::Params, dets::Array{Float64, 3})
+@inbounds function InstantiateManentsDets(Manent::Function, Param::Params, Path::Paths)
+    Neg1o2tau = -1.0 / (2.0 * Param.tau)
+
     for tSlice = 1:Param.nTsl
+        tModPlus = ModTslice(tSlice + 1, Param.nTsl)
+
         for i = 1:Param.nPar
             for j = 1:Param.nPar
-                Path.dets[i, j, tSlice] = 
+                Path.dets[i, j, tSlice] = exp( Neg1o2tau * (Path.beads[tSlice, i] - Path.beads[tModPlus, j])*(Path.beads[tSlice, i] - Path.beads[tModPlus, j]) )
             end
         end
     end
@@ -167,7 +168,7 @@ end
 end
 
 @inbounds function UpdatePotential(Param::Params, Path::Paths, tSlice::Int64, ptcl::Int64)
-    tModPlus = ModTSlice(tSlice + 1, Param.nTsl)
+    tModPlus = ModTslice(tSlice + 1, Param.nTsl)
     vextT = ExtPotential(Param.lam, Path.beads[tSlice, ptcl])
     vextTPlus = ExtPotential(Param.lam, Path.beads[tModPlus, ptcl])
 

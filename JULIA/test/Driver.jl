@@ -35,12 +35,12 @@ end
 
 mutable struct Paths
     beads::Array{Float64,}
-    dets::Array{Float64, 3} # N x N particles, nTsl slices; Julia's built different
-    determinants::Array{Float64}    # Holds evaluated abs(ln(array))
-    potentials::Array{Float64}      # Computed Potentials contribution to action
-    KE::Float64             # Kinetic Energy
-    PE::Float64             # Potential Energy
-    numAcceptCOM::Float64   # Number of Accepted from COM operation
+    dets::Array{Float64, 3}     # N x N particles, nTsl slices; Julia's built different
+    determinants::Array{Float64}# Holds evaluated abs(ln(array))
+    potentials::Array{Float64}  # Computed Potentials contribution to action
+    KE::Float64                 # Kinetic Energy
+    PE::Float64                 # Potential Energy
+    numAcceptCOM::Float64       # Number of Accepted from COM operation
     numAcceptStaging::Float64   # Number of Accepted from Staging operation
 end
 
@@ -272,6 +272,7 @@ function main()
     ### Setup the Paths object(s)
     # Tensors go Row x Column x "slice"
     dets            = zeros(Float64, numParticles, numParticles, numTimeSlices)
+    #@printf "Size of dets tensor: %s\n" string(size(dets))
     determinants    = zeros(Float64, numTimeSlices)
     potentials      = zeros(Float64, numTimeSlices, numParticles)
     numHistBins = 0

@@ -1,7 +1,7 @@
 # Writes the header of the given file, filname, with the given string
 # Technically, it only writes a single string at a time, so it can be used for
 # writing single lines.
-function WriteHeiader(fileName::String, string::String)
+function WriteHeader(fileName::String, string::String)
     open(fileName, "a") do file
         println(file, string)
     end

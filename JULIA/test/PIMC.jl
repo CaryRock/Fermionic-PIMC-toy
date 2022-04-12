@@ -19,17 +19,21 @@
     # Save old dets, potentials, and determiannts array to avoid recalculating them
     oldPotentials = zeros(Float64, Param.nTsl, Param.nPar)
     oldDeterminants = zeros(Float64, Param.nTsl, Param.nPar)
-    oldDets = zeros(Float64, Param.nTsl, Param.nPar, Param.nPar)    # Sidestep the whole copy thing
+    oldDets = zeros(Float64, Param.nPar, Param.nPar, Param.nTsl)    # Sidestep the whole copy thing
+
     for tSlice = 1:Param.nTsl
+        oldDeterminants[tSlice] = Path.determinants[tSlice]
+
         for ptcl = 1:Param.nPar
             oldPotentials[tSlice,ptcl] = Path.potentials[tSlice,ptcl]
-            oldDeterminants[tSlice, ptcl] = Path.determinants[tSlice, ptcl] 
+
             for j = 1:Param.nPar
-                oldDets[tSlice, ptcl, j] = Path.dets[tSlice, ptcl, j]
+                oldDets[ptcl, j, tSlice] = Path.dets[ptcl, j, tSlice]
             end
         end
     end
-    #==========================================================================
+    #=
+    ===========================================================================
     if Param.nPar == 1
         # For a single particle, Path.detemrinants doesn't need updating
     else
@@ -40,12 +44,13 @@
             UpdateManent(Manent, Param, Path, tSlice, ptcl)
         end
     end
-    ==========================================================================#
+    ===========================================================================
+    =#
 
     for tSlice = 1:Param.nTsl
         Path.beads[tSlice,ptcl] += shift
-        BuildDeterminantMatrix(Param, Path.beads, Path.dets, tSlice)
-        UpdatePotential(Path, tSlice, ptcl, Param.lam)
+        BuildDeterminantMatrix(Param, Path, tSlice)
+        UpdatePotential(Param, Path, tSlice, ptcl)
     end
     
     if Param.nPar == 1
@@ -71,12 +76,14 @@
     else    # Reject the proposed move
         for tSlice = 1:Param.nTsl # Restore all the previous values
             Path.beads[tSlice,ptcl] -= shift   # @inbounds
-
+            Path.determinants[tSlice] = oldDeterminants[tSlice] # Restore old determinants
+    # TODO: WHAT'S GOING ON HERE? WHAT'S GOING ON IN THIS ALGORITHM? VERIFY IT 
+    #       IS DESIGNED CORRECTLY - I HAVE MY DOUBTS THAT IT IS BEHAVING
+    #       OR DESIGNED WELL TO BEGIN WITH
             for ptcl = 1:Param.nPar
                 Path.potentials[tSlice,ptcl] = oldPotentials[tSlice,ptcl]   # Restore old potentials
-                Path.determinants[tSlice, ptcl] = oldDeterminants[tSlice, ptcl] # Restore old determinants
                 for j = 1:Param.nPar
-                    Path.dets[tSlice, ptcl, j] = oldDets[tSlice, ptcl, j]
+                    Path.dets[ptcl, j, tSlice] = oldDets[ptcl, j, tSlice]
                 end
             end
         end
@@ -109,12 +116,13 @@ end
     alpha_start     = rand(rng, 1:Param.nTsl)    # This needs to be inclusive - it is here
     alpha_end       = ModTslice((alpha_start + m), Param.nTsl)
 
+    # TODO: VERIFY THAT THIS IS ALL WORKING AS INTENDED - I DON'T THINK IT IS
     for a = 1:m-1
         tSlice              = ModTslice(alpha_start + a, Param.nTsl)
         oldBeads[a]         = Path.beads[tSlice,ptcl]
         oldPotentials[a]    = Path.potentials[tSlice,ptcl]
         oldDeterminant[a]   = Path.determinants[tSlice,ptcl]
-        oldAction           += tauO2 * ComputeAction(Param, Path, tSlice)
+        oldAction           += ComputeAction(Param, Path, tSlice)
     end
 
     for a = 1:m-1
@@ -126,13 +134,13 @@ end
                                 tau * Path.beads[alpha_end,ptcl]) / (tau + tau1)
         sigma2                  = 2.0 * Param.lam / (1.0 / tau + 1.0 / tau1)
         Path.beads[tSlice,ptcl] = avex + sqrt(sigma2) * randn(rng)
-        UpdatePotential(Path, tSlice, ptcl, Param.lam)
-        if Param.nPar == 1
+        UpdatePotential(Param, Path, tSlice, ptcl)
+        if Param.nPar == 1  # TODO: ELIMINATE THIS IF-ELSE STATEMENT
         else
-            BuildDeterminantMatrix(Param, Path.beads, Path.dets, tSlice)
+            BuildDeterminantMatrix(Param, Path, tSlice)
             UpdateManent(Manent, Param, Path, tSlice, ptcl)
         end
-        newAction                   += tauO2 * ComputeAction(Param, Path,tSlice)
+        newAction                   += ComputeAction(Param, Path,tSlice)
             # See Ceperley about this (Potential) Action, how it relates to the
             # Primitive approximation, extra factors of tau in the "accuracy", 
             # etc. In the first few sections.
@@ -224,10 +232,10 @@ are being simulated. Also, write out some of the various log files.
     end
 
 ### Initialize the determinants and potentials arrays #########################
-    function Manent() end
+    function Manent() end   # Just get the thing declared
     Manent = WhichManent(Manent, Determinant, Permanant, Boltzmannant, set["bosons"], set["boltzmannons"])
     BuildDeterminantTensor(Param, Path.beads, Path.dets)
-    InstantiateManents(Manent, Param, Path.beads)
+    InstantiateManents(Manent, Param, Path)
     #InstantiateManentsDets(Manent, Param, Path.dets)
     InstantiatePotentials(Param, Path)
     
@@ -236,12 +244,14 @@ are being simulated. Also, write out some of the various log files.
     binCount    = 0 # Counts the number of sweeps that have been binned over
     steps       = 1 # Update counter
 
+### Begin Simulation Warmup ###################################################
     # Warmup
     println("Equilibriating the simulation...")
     for steps = ProgressBar(1:equilSkip)
         UpdateMC(Manent, Param, Path, rng)
     end
 
+### Begin Simulation Recording ################################################
     println("Starting the data collection now...")
     steps = equilSkip + 1   # Because Julia doesn't "reuse" variables like C/C++ would
     while sampleCount < Param.numSamples
@@ -262,31 +272,12 @@ are being simulated. Also, write out some of the various log files.
             ke          += Path.KE
             pe          += Path.PE
 
-            # NOTE: THIS IS ADDING TOGETHER BOTH PARTICLES AND FINDING THE 
-            # RESULTING VALUES. THIS IS JUST FINE FOR A SINGLE PARTICLE, BUT
-            # FAILS MISERABLY FOR MULTIPLE PARTICLES. LIKEWISE, THE ENERGY
-            # HAS TO BE ADJUSTED (it's not giving the expected ~2.16 for two 
-            # boltzmannons, but ~1.8 which is expected for 2 bosons). THE 
-            # EXPECTATION VALUES FOR THESE WILL HAVE TO BE SEPARATED.
-            #
-            # SEE HOW THE PRODUCTION CODE HANDLES MULTIPLE PARTICLES - DOES IT
-            # REPORT THEM ALL TOGETHER, DOES IT HANDLE THEM INDIVIDUALLY, THEN 
-            # ADD THOSE EXPECTATION VALUES TOGETHER, SOMETHING ELSE...?
-            
             # TODO: kludged - this only records the position of the first particle
             for i = 1:Param.nTsl
                 x1_ave += Path.beads[i,1]
                 x2_ave += Path.beads[i,1] * Path.beads[i,1]
             end
 
-            #=
-            for i = 1:Param.nTsl
-                for j = 1:Param.nPar
-                    x1_ave += Path.beads[i,j] / Param.nPar
-                    x2_ave += Path.beads[i,j] * Path.beads[i,j] / Param.nPar
-                end
-            end
-            =#
             if (binCount % binSize == 0)
                 ### Write the binned data to file
                 sampleCount = sampleCount + 1
