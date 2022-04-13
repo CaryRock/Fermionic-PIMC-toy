@@ -1,0 +1,152 @@
+# PIMCID: 5acc5334-c69c-4634-bf56-c38bd5ca0790
+
+# pimc.e -T 1.0 -t 0.002 -L 20.0 -X harmonic -I free -m 48.48 -N 3 -u 1.100000000000000e-01 -M 256 --canonical --relaxmu --window=1 --gaussian_window_width=0.5 --relax --no_save_state --bin_size=1000 -E 100000 -S 5000 -R 5acc5334-c69c-4634-bf56-c38bd5ca0790 -C 4.000000000000000e-01 -D 1.002651309852400e-01 --estimator=virial 
+
+---------- Begin Simulation Parameters ----------
+
+Command String          	:	pimc.e -T 1.0 -t 0.002 -L 20.0 -X harmonic -I free -m 48.48 -N 3 -u 0.11 -M 256 --canonical --relaxmu --window=1 --gaussian_window_width=0.5 --relax --no_save_state --bin_size=1000 -E 100000 -S 5000 --estimator=virial 
+Ensemble                	:	canonical
+Simulation Type         	:	PIMC
+Action Type             	:	gsf
+Number of paths         	:	1
+Interaction Potential   	:	free
+External Potential      	:	harmonic
+Temperature             	:	1.00000
+Chemical Potential      	:	0.11000
+Particle Mass           	:	48.48000
+Number Time Slices      	:	500
+Specified Imaginary Time Step	:	0.00200
+Imaginary Time Step     	:	0.00200
+Imaginary Time Length   	:	1.00000
+Initial Number Particles	:	3
+Initial Density         	:	0.15000
+Num. Broken World-lines 	:	0
+Container Type          	:	Prism
+Container Dimensions    	:	20.00000
+Container Volume        	:	20.00000
+Lookup Table            	:	1
+Maximum Winding Sector  	:	1
+Initial Worm Constant   	:	1.00000
+Worm Constant           	:	0.40000
+Initial CoM Delta       	:	0.10027
+CoM Delta               	:	0.10027
+Bisection Parameter     	:	8
+Update Length           	:	256
+Potential Cutoff Length 	:	20.00000
+Bin Size                	:	1000
+Number EQ Steps         	:	100000
+Number Bins Stored      	:	5000
+Random Number Seed      	:	139853
+Virial Window           	:	5
+
+---------- End Simulation Parameters ------------
+
+
+---------- Begin Acceptance Data ---------------
+
+Total Rate                   	:	0.36933
+
+center of mass               	:	0.99006	(4533115/4578638)
+
+bisection                    	:	0.97995	(170795027/174288974)
+
+open         Level 0         	:	0.00000	(0/0)
+open         Level 1         	:	0.00715	(14405/2015309)
+open         Level 2         	:	0.00998	(20099/2013021)
+open         Level 3         	:	0.01325	(53332/4025346)
+open         Level 4         	:	0.01798	(144995/8063067)
+open         Level 5         	:	0.02489	(401454/16128363)
+open         Level 6         	:	0.03462	(1117799/32287753)
+open         Level 7         	:	0.04704	(3040378/64634009)
+open         Level 8         	:	0.06068	(7855513/129450641)
+open                         	:	0.04891	(12647975/258617509)
+
+close        Level 0         	:	0.00000	(0/0)
+close        Level 1         	:	1.00000	(14272/14272)
+close        Level 2         	:	1.00000	(20328/20328)
+close        Level 3         	:	1.00000	(53422/53422)
+close        Level 4         	:	0.99999	(144888/144889)
+close        Level 5         	:	0.99976	(401001/401097)
+close        Level 6         	:	0.99650	(1118329/1122260)
+close        Level 7         	:	0.98361	(3040998/3091668)
+close        Level 8         	:	0.94763	(7856669/8290879)
+close                        	:	0.96279	(12649907/13138815)
+
+insert       Level 0         	:	0.00000	(0/0)
+insert       Level 1         	:	0.13108	(265048/2022022)
+insert       Level 2         	:	0.12357	(250139/2024305)
+insert       Level 3         	:	0.11401	(461535/4048071)
+insert       Level 4         	:	0.09882	(799845/8094149)
+insert       Level 5         	:	0.07931	(1284273/16192444)
+insert       Level 6         	:	0.06009	(1946311/32390118)
+insert       Level 7         	:	0.04500	(2915005/64784666)
+insert       Level 8         	:	0.03456	(4477679/129578922)
+insert                       	:	0.04785	(12399835/259134697)
+
+remove       Level 0         	:	0.00000	(0/0)
+remove       Level 1         	:	1.00000	(264972/264972)
+remove       Level 2         	:	1.00000	(250355/250355)
+remove       Level 3         	:	1.00000	(461126/461126)
+remove       Level 4         	:	1.00000	(800774/800774)
+remove       Level 5         	:	1.00000	(1284853/1284853)
+remove       Level 6         	:	1.00000	(1946875/1946875)
+remove       Level 7         	:	1.00000	(2912989/2912989)
+remove       Level 8         	:	0.99985	(4475959/4476610)
+remove                       	:	0.99995	(12397903/12398554)
+
+advance head Level 0         	:	0.00000	(0/0)
+advance head Level 1         	:	0.99165	(161582/162942)
+advance head Level 2         	:	0.98306	(160374/163137)
+advance head Level 3         	:	0.97084	(317899/327447)
+advance head Level 4         	:	0.94913	(618568/651723)
+advance head Level 5         	:	0.91034	(1188493/1305549)
+advance head Level 6         	:	0.84398	(2204282/2611759)
+advance head Level 7         	:	0.73354	(3835216/5228346)
+advance head Level 8         	:	0.55371	(5785459/10448585)
+advance head                 	:	0.68288	(14271873/20899488)
+
+recede head  Level 0         	:	0.00000	(0/0)
+recede head  Level 1         	:	0.99756	(162024/162421)
+recede head  Level 2         	:	0.99528	(160382/161142)
+recede head  Level 3         	:	0.99184	(317420/320031)
+recede head  Level 4         	:	0.98390	(619494/629629)
+recede head  Level 5         	:	0.96853	(1187461/1226041)
+recede head  Level 6         	:	0.93693	(2203649/2351988)
+recede head  Level 7         	:	0.87080	(3835061/4404049)
+recede head  Level 8         	:	0.73538	(5787822/7870491)
+recede head                  	:	0.83344	(14273313/17125792)
+
+advance tail Level 0         	:	0.00000	(0/0)
+advance tail Level 1         	:	0.99748	(162949/163360)
+advance tail Level 2         	:	0.99528	(160466/161227)
+advance tail Level 3         	:	0.99179	(317330/319958)
+advance tail Level 4         	:	0.98408	(618068/628064)
+advance tail Level 5         	:	0.96914	(1189781/1227669)
+advance tail Level 6         	:	0.93694	(2204270/2352623)
+advance tail Level 7         	:	0.87062	(3830515/4399779)
+advance tail Level 8         	:	0.73464	(5787133/7877504)
+advance tail                 	:	0.83306	(14270512/17130184)
+
+recede tail  Level 0         	:	0.00000	(0/0)
+recede tail  Level 1         	:	0.99145	(161956/163352)
+recede tail  Level 2         	:	0.98254	(159552/162388)
+recede tail  Level 3         	:	0.97148	(316558/325851)
+recede tail  Level 4         	:	0.94891	(619928/653308)
+recede tail  Level 5         	:	0.91008	(1188558/1305998)
+recede tail  Level 6         	:	0.84391	(2205750/2613715)
+recede tail  Level 7         	:	0.73336	(3831489/5224596)
+recede tail  Level 8         	:	0.55330	(5782667/10451144)
+recede tail                  	:	0.68259	(14266458/20900352)
+
+swap head                    	:	0.63016	(14860635/23582399)
+
+swap tail                    	:	0.63010	(14856926/23578678)
+
+---------- End Acceptance Data -----------------
+
+
+---------- Begin Estimator Data ----------------
+
+virial                           	:	         9173929	         5000000
+
+---------- End Estimator Data ------------------

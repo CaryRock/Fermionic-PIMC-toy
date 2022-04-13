@@ -1,0 +1,60 @@
+# PIMCID: 1d4d51e0-b989-11ec-2fb5-9ff14447dc3c
+
+# julia Driver.jl -T 1.5 -N 2 -t 0.01 -E 100000 -O 2 -S 1024 -B 100 
+
+-------------- Begin Simulation Parameters ------------------------------------
+
+Command String			:	julia Driver.jl -T 1.5 -N 2 -t 0.01 -E 100000 -O 2 -S 1024 -B 100 
+Ensemble			:	canonical
+Simulation Type			:	PIMC
+Action Type			:	gsf
+Number of paths			:	2
+Interaction Potential		:	free
+External Potential		:	harmonic
+Temperature			:	1.5
+Chemical Potential		:	0.11000
+Particle Mass			:	48.48
+Number Time Slices		:	66
+Specified Imaginary Time Step	:	0.01
+Imaginary Time Step		:	0.01
+Imaginary Time Length		:	0.66667
+Initial Number Particles	:	2
+Initial Density			:	0.10000
+Num. Broken World-lines		:	0
+Container Type			:	Prism
+Container Dimensions		:	10.00000
+Container Volume		:	10.00000
+Lookup Table			:	1
+Maximum Winding Sector		:	1
+Initial Worm Constant		:	1.00000
+Initial CoM Delta		:	1.0
+CoM Delta			:	1.0
+Bisection Parameter		:	16
+Update Length			:	256
+Potential Cutoff Length		:	10.00000
+Bin Size			:	100
+Number EQ Steps			:	100000
+Number Bins Stored		:	1024
+Random Number Seed		:	12345
+Virtual Window			:	5
+
+------------- End Simulation Parameters ---------------------------------------
+
+
+-------------- Begin Acceptance Data ------------------------------------------
+
+Total Rate			:	0.12345
+
+center of mass			:	0.0
+
+bisection			:	0.0
+
+
+-------------- End Acceptance Data --------------------------------------------
+
+
+-------------- Begin Estimator Data -------------------------------------------
+
+
+-------------- End Estimator Data ---------------------------------------------
+

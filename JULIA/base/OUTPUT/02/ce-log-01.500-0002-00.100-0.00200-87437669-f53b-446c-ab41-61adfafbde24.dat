@@ -1,0 +1,121 @@
+# PIMCID: 87437669-f53b-446c-ab41-61adfafbde24
+
+# pimc.e -T 1.5 -t 0.002 -L 20.0 -X harmonic -I free -m 48.48 -N 2 -u 1.100000000000000e-01 -M 16 --canonical --relaxmu --window=1 --gaussian_window_width=0.5 --relax --no_save_state --bin_size=1000 -E 100000 -S 5000 -R 87437669-f53b-446c-ab41-61adfafbde24 -C 3.607176599475832e-02 -D 8.186613663571908e-02 --estimator=virial --estimator="linear density rho" 
+
+---------- Begin Simulation Parameters ----------
+
+Command String          	:	pimc.e -T 1.5 -t 0.002 -L 20.0 -X harmonic -I free -m 48.48 -N 2 -u 0.11 -M 16 --canonical --relaxmu --window=1 --gaussian_window_width=0.5 --relax --no_save_state --bin_size=1000 -E 100000 -S 5000 --estimator=virial --estimator="linear density rho" 
+Ensemble                	:	canonical
+Simulation Type         	:	PIMC
+Action Type             	:	gsf
+Number of paths         	:	1
+Interaction Potential   	:	free
+External Potential      	:	harmonic
+Temperature             	:	1.50000
+Chemical Potential      	:	0.11000
+Particle Mass           	:	48.48000
+Number Time Slices      	:	332
+Specified Imaginary Time Step	:	0.00200
+Imaginary Time Step     	:	0.00201
+Imaginary Time Length   	:	0.66667
+Initial Number Particles	:	2
+Initial Density         	:	0.10000
+Num. Broken World-lines 	:	0
+Container Type          	:	Prism
+Container Dimensions    	:	20.00000
+Container Volume        	:	20.00000
+Lookup Table            	:	1
+Maximum Winding Sector  	:	1
+Initial Worm Constant   	:	1.00000
+Worm Constant           	:	0.03607
+Initial CoM Delta       	:	0.08187
+CoM Delta               	:	0.08187
+Bisection Parameter     	:	4
+Update Length           	:	16
+Potential Cutoff Length 	:	20.00000
+Bin Size                	:	1000
+Number EQ Steps         	:	100000
+Number Bins Stored      	:	5000
+Random Number Seed      	:	139853
+Virial Window           	:	5
+
+---------- End Simulation Parameters ------------
+
+
+---------- Begin Acceptance Data ---------------
+
+Total Rate                   	:	0.29741
+
+center of mass               	:	0.99345	(5959823/5999128)
+
+bisection                    	:	0.99930	(154868333/154976651)
+
+open         Level 0         	:	0.00000	(0/0)
+open         Level 1         	:	0.00046	(14477/31372326)
+open         Level 2         	:	0.00066	(20727/31377635)
+open         Level 3         	:	0.00087	(54503/62780431)
+open         Level 4         	:	0.00119	(148899/125595814)
+open                         	:	0.00095	(238606/251126206)
+
+close        Level 0         	:	0.00000	(0/0)
+close        Level 1         	:	1.00000	(14481/14481)
+close        Level 2         	:	1.00000	(20743/20743)
+close        Level 3         	:	1.00000	(54287/54287)
+close        Level 4         	:	0.99999	(148777/148779)
+close                        	:	0.99999	(238288/238290)
+
+insert       Level 0         	:	0.00000	(0/0)
+insert       Level 1         	:	0.01162	(366228/31515579)
+insert       Level 2         	:	0.01099	(346352/31521672)
+insert       Level 3         	:	0.01009	(636279/63038310)
+insert       Level 4         	:	0.00875	(1103593/126054780)
+insert                       	:	0.00973	(2452452/252130341)
+
+remove       Level 0         	:	0.00000	(0/0)
+remove       Level 1         	:	1.00000	(367028/367028)
+remove       Level 2         	:	1.00000	(345328/345328)
+remove       Level 3         	:	1.00000	(637073/637073)
+remove       Level 4         	:	1.00000	(1103341/1103341)
+remove                       	:	1.00000	(2452770/2452770)
+
+advance head Level 0         	:	0.00000	(0/0)
+advance head Level 1         	:	0.98444	(1703868/1730806)
+advance head Level 2         	:	0.96962	(1678589/1731182)
+advance head Level 3         	:	0.94855	(3283707/3461833)
+advance head Level 4         	:	0.91030	(6303471/6924636)
+advance head                 	:	0.93654	(12969635/13848457)
+
+recede head  Level 0         	:	0.00000	(0/0)
+recede head  Level 1         	:	0.99756	(1704669/1708838)
+recede head  Level 2         	:	0.99491	(1677530/1686116)
+recede head  Level 3         	:	0.99099	(3285283/3315154)
+recede head  Level 4         	:	0.98290	(6302167/6411790)
+recede head                  	:	0.98840	(12969649/13121898)
+
+advance tail Level 0         	:	0.00000	(0/0)
+advance tail Level 1         	:	0.99746	(1705381/1709724)
+advance tail Level 2         	:	0.99486	(1678256/1686919)
+advance tail Level 3         	:	0.99101	(3284913/3314715)
+advance tail Level 4         	:	0.98288	(6302861/6412667)
+advance tail                 	:	0.98837	(12971411/13124025)
+
+recede tail  Level 0         	:	0.00000	(0/0)
+recede tail  Level 1         	:	0.98438	(1702531/1729544)
+recede tail  Level 2         	:	0.96945	(1679455/1732382)
+recede tail  Level 3         	:	0.94855	(3286707/3464978)
+recede tail  Level 4         	:	0.91025	(6300808/6922029)
+recede tail                  	:	0.93650	(12969501/13848933)
+
+swap head                    	:	0.19580	(3552878/18145581)
+
+swap tail                    	:	0.19538	(3545513/18146982)
+
+---------- End Acceptance Data -----------------
+
+
+---------- Begin Estimator Data ----------------
+
+virial                           	:	         8060855	         5000000
+linear density rho               	:	         8060855	         5000000
+
+---------- End Estimator Data ------------------
