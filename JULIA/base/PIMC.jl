@@ -215,8 +215,22 @@ end
 
     # Warmup
     println("Equilibriating the simulation...")
-    for steps = ProgressBar(1:equilSkip)
+    # How much to skip? equilSkip*numSamples*observableSkip
+    for steps = ProgressBar(1:equilSkip*Param.numSamples*Param.observableSkip)
         UpdateMC(Manent, Param, Path, rng)
+#=
+        while sampleCount < Param.numSamples
+            UpdateMC(Manent, Param, Path, rng)
+
+            if (steps % Param.observableSkip == 0)
+                binCount += 1
+                
+                if (binCount % binSize == 0)
+                    sampleCount += 1
+                end
+            end
+        end
+=#
     end
     
     # Simulation proper
